@@ -1,0 +1,19 @@
+clang ../code/main.c -std=c89 -pedantic -O0 -g2 -gdwarf-2 -Wall -fstack-protector /nologo /incremental -o ../bin/main
+clang ../code/main.c -std=c89 -pedantic -O2 -g2 -gdwarf-2 -Wall -fstack-protector /nologo /incremental -o ../bin/main
+
+MSVC:
+
+/*#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4001)
+#endif*/
+
+/* Standard headers */
+#include <stdio.h>
+#include <stdlib.h>
+
+/*#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif*/
+
+/* Include own headers */
