@@ -1,6 +1,6 @@
 @echo off
 
-set DEBUGVARS=/Od /Zi /FC /W4 /wd4100 /nologo /Tc
+set DEBUGVARS=/Od /Zi /Za /FC /W4 /wd4100 /wd4001 /nologo /Tc
 set RELEASEVARS=/O2 /Oi /FC /W4 /wd4100 /nologo /Tc
 
 set code=..\code\main.c
