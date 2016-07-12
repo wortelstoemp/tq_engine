@@ -8,6 +8,7 @@
 /* Include own headers */
 #include "types.h"
 #include "platform.h"
+#include "input.h"
 #include "render.h"
 /* #include "math.h" */
 
@@ -115,6 +116,7 @@ Window CreateWindow(const char* title, int width, int height, u32 flags)
 void DestroyWindow(Window* window)
 {
 	SDL_DestroyWindow(window->handle);
+	SDL_DestroyRenderer(window->renderer);	
 	SDL_DestroyTexture(window->frontBuffer);
 	SDL_Quit();
 }
@@ -127,28 +129,89 @@ void SwapBuffers(Window* window, Renderer* renderer)
 }
 
 /* Input */
-bool HandleEvent(SDL_Event* event)
+bool HandleEvents(Input* input)
 {
+	SDL_Event event;
     bool isRunning = true;
-    switch(event->type)
-    {
-        case SDL_QUIT:
-        {
-            isRunning = false;
-        } break;
-        
-        case SDL_WINDOWEVENT:
-        {
-            switch(event->window.event)
-            {
-                case SDL_WINDOWEVENT_RESIZED:
-                {
-                    /* TODO */
-                } break;
-            }
-        } break;
-    }
-    
+	InputResetMouseScroll(input);
+	/* SDL_SetRelativeMouseMode(SDL_TRUE);*/
+	
+	for (int i = 0; i < INPUT_NUM_MOUSEBUTTONS; i++)
+	{
+		input->mouseButtonsDown[i] = 0;
+		input->mouseButtonsUp[i] = 0;		
+	}
+	
+	for (int i = 0; i < input->numKeys; i++)
+	{
+		input->keysDown[i] = 0;
+		input->keysUp[i] = 0;		
+	}
+		
+	i32 relx, rely;
+	SDL_GetRelativeMouseState(&relx, &rely);
+	InputSetRelativeMouseMotion(input, relx, rely);
+	
+	i32 x, y;
+	SDL_GetMouseState(&x, &y);
+	InputSetMousePosition(input, x, y);
+	
+	while (SDL_PollEvent(&event))
+	{
+		if (event.type == SDL_KEYDOWN)
+		{
+			int scancode = event.key.keysym.scancode;
+			input->keysDown[scancode] = 1;		
+		}
+			
+		if (event.type == SDL_KEYUP)
+		{
+			int scancode = event.key.keysym.scancode;
+			input->keysUp[scancode] = 1;	
+		}
+		
+		switch(event.type)
+    	{
+			case SDL_QUIT:
+			{
+				isRunning = false;
+			} break;
+		
+			case SDL_MOUSEBUTTONDOWN:
+			{
+				int button = event.button.button;
+				input->mouseButtons[button] = 1;
+				input->mouseButtonsDown[button] = 1;
+				
+			} break;
+			
+			case SDL_MOUSEBUTTONUP:
+			{
+				int button = event.button.button;
+				input->mouseButtons[button] = 0;
+				input->mouseButtonsUp[button] = 1;
+				
+			} break;
+		
+			case SDL_MOUSEWHEEL:
+			{
+				SDL_MouseWheelEvent* mwEvent = (SDL_MouseWheelEvent*) &event;
+				InputAddMouseScroll(input, mwEvent->x, mwEvent->y);
+			} break;
+		
+			case SDL_WINDOWEVENT:
+			{
+				switch(event.window.event)
+				{
+					case SDL_WINDOWEVENT_RESIZED:
+					{
+						/* TODO */
+					} break;
+				}
+			} break;
+		}
+	}
+	
 	return isRunning;
 }
 
@@ -171,6 +234,10 @@ int main(int argc, char* argv[])
 	
 	Renderer renderer = CreateRenderer(width, height);
 	
+	int numKeys;
+	u8* keyboardState = (u8*) SDL_GetKeyboardState(&numKeys);
+	Input input = CreateInput(keyboardState, numKeys);
+	
 	/* Main loop */
 	bool isRunning = true;
 	float dt = 0.0f;
@@ -180,11 +247,16 @@ int main(int argc, char* argv[])
 	while (isRunning)
 	{
 		dt = CalcClockDelta(&clock);
-		SDL_Event event;
-        
-		while(SDL_PollEvent(&event))
+		isRunning = HandleEvents(&input);
+		
+		if (input.keys[SDL_SCANCODE_W])
 		{
-			isRunning = HandleEvent(&event);
+			printf("Pressing W\n");
+		}
+		
+		if (input.keysUp[SDL_SCANCODE_W])
+		{
+			printf("Released W\n");
 		}
 		
 		while (IsClockAccumulating(&clock))
@@ -221,6 +293,7 @@ int main(int argc, char* argv[])
 	}
 	
 	/* Shutdown */
+	DestroyInput(&input);
 	DestroyRenderer(&renderer);
 	DestroyWindow(&window);
 
