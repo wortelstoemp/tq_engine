@@ -184,13 +184,13 @@ int main(int argc, char* argv[])
         
 		while(SDL_PollEvent(&event))
 		{
-            isRunning = HandleEvent(&event);            
+			isRunning = HandleEvent(&event);            
         }
 		
 		while (IsClockAccumulating(&clock))
 		{
-            /* Fixed stuff */
-            AccumulateClock(&clock);
+			/* Fixed stuff */
+			AccumulateClock(&clock);
         }
 		
 		Color clearColor;

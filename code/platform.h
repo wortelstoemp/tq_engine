@@ -8,8 +8,8 @@ typedef struct Clock
 	u64		performanceFrequency;
 	u64		current;
 	u64		last;
-	float   fixed;
-	float   accumulator;	
+	float	fixed;
+	float	accumulator;	
 } Clock;
 
 Clock	CreateClock(float fps);
@@ -26,7 +26,7 @@ struct Window;
 struct Renderer;
 
 struct Window	CreateWindow(const char* title, int width, int height, u32 flags);
-void 			DestroyWindow(struct Window* window);
-void 			SwapBuffers(struct Window* window, struct Renderer* renderer);
+void			DestroyWindow(struct Window* window);
+void			SwapBuffers(struct Window* window, struct Renderer* renderer);
 
 /*****************************************************************************/
