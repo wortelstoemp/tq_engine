@@ -2,11 +2,11 @@
 
 typedef struct BackBuffer
 {
-	u8*				memory;
-	int 			width;
-	int 			height;
-	int				pitch;
-	int				bytesPerPixel;
+	u8* memory;
+	int width;
+	int height;
+	int pitch;
+	int	bytesPerPixel;
 } BackBuffer;
 
 typedef struct Color
@@ -19,8 +19,8 @@ typedef struct Color
 
 typedef struct Renderer
 {
-	BackBuffer		backBuffer;
-	int*			scanBuffer;
+	BackBuffer backBuffer;
+	int* scanBuffer;
 } Renderer;
 
 Renderer CreateRenderer(int width, int height)
@@ -66,7 +66,7 @@ void ClearBackBuffer(Renderer* renderer, Color* color)
         
 	for (size_t i = 0; i < rows; i++)
 	{
-	    for (size_t j = 0; j < columns; j += backBuffer->bytesPerPixel)
+		for (size_t j = 0; j < columns; j += backBuffer->bytesPerPixel)
 		{
 	        /* Format: BGRA */
 	        const size_t index = i * columns + j;
@@ -90,10 +90,10 @@ void DrawPixel(Renderer* renderer, int x, int y, const Color* const color)
 	if (x > 0 && y > 0 && x < width && y < height)
 	{
 		const size_t index = (x + y * width) * backBuffer->bytesPerPixel;
-    	backBuffer->memory[index] = color->b;
-    	backBuffer->memory[index + 1] = color->g;
-    	backBuffer->memory[index + 2] = color->r;
-    	backBuffer->memory[index + 3] = color->a; 
+		backBuffer->memory[index] = color->b;
+		backBuffer->memory[index + 1] = color->g;
+		backBuffer->memory[index + 2] = color->r;
+		backBuffer->memory[index + 3] = color->a; 
 	}
 }
 

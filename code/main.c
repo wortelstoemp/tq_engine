@@ -72,9 +72,9 @@ float CalcClockInterpolationAlpha(const Clock* const clock)
 /* Window */
 typedef struct Window
 {
-	SDL_Window*			handle;
-	SDL_Renderer*		renderer;
-	SDL_Texture*		frontBuffer;
+	SDL_Window* handle;
+	SDL_Renderer* renderer;
+	SDL_Texture* frontBuffer;
 } Window;
 
 Window CreateWindow(const char* title, int width, int height, u32 flags)
