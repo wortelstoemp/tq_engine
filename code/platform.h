@@ -30,3 +30,7 @@ void DestroyWindow(struct Window* window);
 void SwapBuffers(struct Window* window, struct Renderer* renderer);
 
 /*****************************************************************************/
+/* Input */
+
+struct Input;
+bool HandleEvents(struct Input* input);
