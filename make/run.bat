@@ -1,2 +1,2 @@
 @echo off
-call ..\bin\main.exe
+call ..\bin\sdl2_main.exe

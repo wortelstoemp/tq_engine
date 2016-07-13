@@ -1,2 +1,2 @@
 @echo off
-devenv ../bin/main.exe
+devenv ../bin/sdl2_main.exe

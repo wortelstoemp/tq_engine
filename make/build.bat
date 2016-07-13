@@ -3,7 +3,7 @@
 set DEBUGVARS=/Od /Zi /Za /FC /W4 /wd4100 /wd4001 /nologo /Tc
 set RELEASEVARS=/O2 /Oi /FC /W4 /wd4100 /nologo /Tc
 
-set code=..\code\main.c
+set code=..\code\sdl2_main.c
 
 set includes=/I "..\deps\includes"
 
