@@ -40,12 +40,12 @@ float CalcClockInterpolationAlpha(const Clock* const clock);
 struct Window;
 struct Renderer;
 
-struct Window CreateWindow(const char* title, int width, int height, u32 flags);
-void DestroyWindow(struct Window* window);
-void SwapBuffers(struct Window* window, struct Renderer* renderer);
+struct Window SDL2CreateWindow(const char* title, int width, int height, u32 flags);
+void SDL2DestroyWindow(struct Window* window);
+void SDL2SwapBuffers(struct Window* window, struct Renderer* renderer);
 
 /*****************************************************************************/
 /* Input */
 
 struct Input;
-bool HandleEvents(struct Input* input);
+static bool HandleEvents(struct Input* input);
