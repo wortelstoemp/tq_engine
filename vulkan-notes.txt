@@ -1,13 +1,15 @@
 Test:
 
-VkResult vkEnumerateInstanceExtensionProperties(const char* pLayerName, uint32_t* pPropertyCount,VkExtensionProperties* pProperties);
-
+VkResult vkEnumerateInstanceExtensionProperties(const char* pLayerName, uint32_t* pPropertyCount, VkExtensionProperties* pProperties);
+_______________________________________________________________________________
 
 Setup:
 
 * Create instance:
 
-	VkApplicationInfo appInfo = {};
+	VkInstance instance;
+	
+	VkApplicationInfo appInfo;
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	appInfo.pNext = NULL;
 	appInfo.pApplicationName = "TQ Engine";
@@ -16,13 +18,35 @@ Setup:
 	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 	appInfo.apiVersion = VK_API_VERSION_1_0;
 
-	VkInstanceCreateInfo instanceCreateInfo = {};
+	VkInstanceCreateInfo instanceCreateInfo;
 	instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	instanceCreateInfo.pNext = NULL;
+	instanceCreateInfo.flags = 0;
 	instanceCreateInfo.pApplicationInfo = &appInfo;
+	instanceCreateInfo.ppEnabledLayerNames = NULL;
 	
 	unsigned int extensionCount = 0;
-	const char** extensions = NULL;
-	SDL_GetVulkanInstanceExtensions(&extensionCount, extensions);
-
+	const char** extensionNames = NULL;
+    extensionNames = glfwGetRequiredInstanceExtensions(&extensionCount);
+	printf("count: %u\n", extensionCount);
+    
 	instanceCreateInfo.enabledExtensionCount = extensionCount;
-	instanceCreateInfo.ppEnabledExtensionNames = extensions;
+	instanceCreateInfo.ppEnabledExtensionNames = extensionNames;
+	instanceCreateInfo.enabledLayerCount = 0;
+	
+	if (vkCreateInstance(&instanceCreateInfo, NULL, &instance) != VK_SUCCESS) {
+		printf("Couldn't create VkInstance.\n");
+	}
+	
+* Destroy instance:
+	vkDestroy(instance, NULL);	
+_______________________________________________________________________________	
+
+Validation layers (mostly for debugging):
+
+Optional components that hook into Vulkan function calls for extra operations:
+	- Compare parameters against the spec to detect misuse
+	- Tracking creation and destruction of objects to find resource leaks
+	- Checking thread safety by tracking the threads that calls originate from
+	- Logging every call and its parameters to the standard output
+	- Tracing Vulkan calls for profiling and replaying
