@@ -453,6 +453,12 @@ int main(int argc, char* argv[])
             SDL_WINDOW_INPUT_FOCUS
 	);
 	
+	{
+		unsigned int extensionCount = 0;
+		const char** extensions = NULL;
+		SDL_GetVulkanInstanceExtensions(&extensionCount, extensions);
+	}
+	
 	Renderer renderer = CreateRenderer(width, height);
 	
 	int numKeys;
