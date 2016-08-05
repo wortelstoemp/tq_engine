@@ -1,0 +1,28 @@
+Test:
+
+VkResult vkEnumerateInstanceExtensionProperties(const char* pLayerName, uint32_t* pPropertyCount,VkExtensionProperties* pProperties);
+
+
+Setup:
+
+* Create instance:
+
+	VkApplicationInfo appInfo = {};
+	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	appInfo.pNext = NULL;
+	appInfo.pApplicationName = "TQ Engine";
+	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+	appInfo.pEngineName = "TQ Engine";
+	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+	appInfo.apiVersion = VK_API_VERSION_1_0;
+
+	VkInstanceCreateInfo instanceCreateInfo = {};
+	instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	instanceCreateInfo.pApplicationInfo = &appInfo;
+	
+	unsigned int extensionCount = 0;
+	const char** extensions = NULL;
+	SDL_GetVulkanInstanceExtensions(&extensionCount, extensions);
+
+	instanceCreateInfo.enabledExtensionCount = extensionCount;
+	instanceCreateInfo.ppEnabledExtensionNames = extensions;
