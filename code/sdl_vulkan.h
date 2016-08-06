@@ -1,69 +1,102 @@
 #pragma once
 
+/*
+    NOTE: Change include paths below if necessary!
+    
+    Usage code:
+    
+    1) Creating a VkInstance:
+    
+    VkInstance instance;    
+    ...
+    VkInstanceCreateInfo instanceCreateInfo;
+    ...
+    unsigned int extensionCount = 0;
+->  char** extensions = SDL_AllocVulkanInstanceExtensions(&extensionCount);
+    instanceCreateInfo.enabledExtensionCount = extensionCount;
+	instanceCreateInfo.ppEnabledExtensionNames = extensions;
+    
+    if (vkCreateInstance(&instanceCreateInfo, NULL, &instance) != VK_SUCCESS) {
+	    printf("Couldn't create VkInstance.\n");
+->		SDL_FreeVulkanInstanceExtensions(extensions);
+		exit(EXIT_FAILURE);
+	}
+		
+->  SDL_FreeVulkanInstanceExtensions(extensions)
+    
+    2) Creating a VkSurfaceKHR:
+    
+    VkSurfaceKHR surface;
+->  if (!SDL_CreateVulkanSurface(instance, window, NULL, &surface)) {
+        printf("SDL_CreateVulkanSurface failed: %s\n", SDL_GetError());
+		exit(EXIT_FAILURE);
+	}
+*/
+
 #ifdef _WIN32
 #define VK_USE_PLATFORM_WIN32_KHR
-#include <windows.h>
 #elif __linux__
 #define VK_USE_PLATFORM_XCB_KHR
 #elif __ANDROID__
 #define VK_USE_PLATFORM_ANDROID_KHR
 #endif
 
+#include <stdlib.h>
 #include <string.h>
+
+/* Change include paths if necessary */
 #include <sdl/SDL_video.h>
 #include <vulkan/vulkan.h>
 #include <sdl/SDL_syswm.h>
 
-static SDL_bool SetNames(unsigned int* count, const char** names, unsigned int inCount, const char* const* inNames)
-{
-    unsigned int capacity = *count;
-    unsigned int i;
-    
-    *count = inCount;
-    if (names) {
-        if (capacity < inCount) {
-            SDL_SetError("Insufficient capacity for extension names: %u < %u", capacity, inCount);
-            return SDL_FALSE;
-        }
-        for (i = 0; i < inCount; i++) {
-            names[i] = inNames[i];
-        }
-    }
-    return SDL_TRUE;
-}
-
-SDL_bool SDL_GetVulkanInstanceExtensions(unsigned int* count, const char** names)
+char** SDL_AllocVulkanInstanceExtensions(unsigned int* count)
 {
     const char* driver = SDL_GetCurrentVideoDriver();
+    const unsigned int nrExtensions = 2;
+    
     if (!driver) {
         SDL_SetError("No video driver - has SDL_Init(SDL_INIT_VIDEO) been called?");
-        return SDL_FALSE;
+        return NULL;
     }
     
     if (!count) {
         SDL_SetError("'count' is NULL");
-        return SDL_FALSE;
+        return NULL;
     }
+    
+    *count = nrExtensions;
+    char** extensions = (char**) malloc(nrExtensions * sizeof(char*));    
     
 #ifdef _WIN32
     if(strcmp(driver, "windows") == 0) {
-       const char* ext[] = { VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
-       return SetNames(count, names, 1, ext);
+        extensions[0] = VK_KHR_SURFACE_EXTENSION_NAME;
+        extensions[1] = VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
+        return extensions;
     }
 #elif __linux__
     if (strcmp(driver, "x11") == 0) {
-        const char* ext[] = { VK_KHR_XCB_SURFACE_EXTENSION_NAME };
-        return SetNames(count, names, 1, ext);
+        extensions[0] = VK_KHR_SURFACE_EXTENSION_NAME;
+        extensions[1] = VK_KHR_XCB_SURFACE_EXTENSION_NAME;
+        return extensions;
     }
 #elif __ANDROID__
     if (strcmp(driver, "android") == 0) {
-        const char* ext[] = { VK_KHR_ANDROID_SURFACE_EXTENSION_NAME };
-        return SetNames(count, names, 1, ext);
+        extensions[0] = VK_KHR_SURFACE_EXTENSION_NAME;
+        extensions[1] = VK_KHR_ANDROID_SURFACE_EXTENSION_NAME;
+        return extensions;
     }
 #endif
 
     SDL_SetError("Unsupported video driver '%s'", driver);
-    return SDL_FALSE;
+    return NULL;
+}
+
+void SDL_FreeVulkanInstanceExtensions(char** extensions)
+{
+    if (!extensions) {
+        return;
+    }
+    free(extensions);
 }
 
 SDL_bool SDL_CreateVulkanSurface(VkInstance instance, SDL_Window* window, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface)

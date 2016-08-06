@@ -459,36 +459,60 @@ int main(int argc, char* argv[])
 		exit(EXIT_FAILURE);
 	}
 	
-	VkInstance vulkanInstance;
+	SDL_Window* window = SDL_CreateWindow(
+			"TQ Engine",
+			SDL_WINDOWPOS_UNDEFINED,
+			SDL_WINDOWPOS_UNDEFINED,
+			800,
+			600,
+			0
+	);
 	
-	VkApplicationInfo appInfo;
-	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pNext = NULL;
-	appInfo.pApplicationName = "TQ Engine";
-	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-	appInfo.pEngineName = "No Engine";
-	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-	appInfo.apiVersion = VK_API_VERSION_1_0;
+	VkInstance instance;
+	{
+		VkApplicationInfo appInfo;
+		VkInstanceCreateInfo instanceCreateInfo;
+		
+		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+		appInfo.pNext = NULL;
+		appInfo.pApplicationName = "TQ Engine";
+		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+		appInfo.pEngineName = "No Engine";
+		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+		appInfo.apiVersion = VK_API_VERSION_1_0;
 
-	VkInstanceCreateInfo instanceCreateInfo;
-	instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	instanceCreateInfo.pNext = NULL;
-	instanceCreateInfo.flags = 0;
-	instanceCreateInfo.pApplicationInfo = &appInfo;
-	instanceCreateInfo.ppEnabledLayerNames = NULL;
+		instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+		instanceCreateInfo.pNext = NULL;
+		instanceCreateInfo.flags = 0;
+		instanceCreateInfo.pApplicationInfo = &appInfo;
+		instanceCreateInfo.ppEnabledLayerNames = NULL;
 	
-	unsigned int extensionCount = 0;
-	const char** extensionNames = NULL;
-	SDL_GetVulkanInstanceExtensions(&extensionCount, extensionNames);
-	printf("count: %u\n", extensionCount);
-	instanceCreateInfo.enabledExtensionCount = extensionCount;
-	instanceCreateInfo.ppEnabledExtensionNames = extensionNames;
-	instanceCreateInfo.enabledLayerCount = 0;
+		unsigned int extensionCount = 0;
+		char** extensions = SDL_AllocVulkanInstanceExtensions(&extensionCount);
+		instanceCreateInfo.enabledExtensionCount = extensionCount;
+		instanceCreateInfo.ppEnabledExtensionNames = extensions;
+		instanceCreateInfo.enabledLayerCount = 0;
 	
-	if (vkCreateInstance(&instanceCreateInfo, NULL, &vulkanInstance) != VK_SUCCESS) {
-		printf("Couldn't create VkInstance.\n");
+		if (vkCreateInstance(&instanceCreateInfo, NULL, &instance) != VK_SUCCESS) {
+			printf("Couldn't create VkInstance.\n");
+			SDL_FreeVulkanInstanceExtensions(extensions);
+			exit(EXIT_FAILURE);
+		}
+		
+		SDL_FreeVulkanInstanceExtensions(extensions);
 	}
 	
+	VkSurfaceKHR surface;
+    if (!SDL_CreateVulkanSurface(instance, window, NULL, &surface)) {
+        printf("SDL_CreateVulkanSurface failed: %s\n", SDL_GetError());
+		exit(EXIT_FAILURE);
+	}
+	
+	/* Update */
+	
+	/* Shutdown */
+	vkDestroyInstance(instance, NULL);
+	SDL_Quit();
 	
 	// Renderer renderer = CreateRenderer(width, height);
 	

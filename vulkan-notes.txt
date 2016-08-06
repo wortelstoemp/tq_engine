@@ -42,7 +42,7 @@ Setup:
 	vkDestroy(instance, NULL);	
 _______________________________________________________________________________	
 
-Validation layers (mostly for debugging):
+TODO - Validation layers:
 
 Optional components that hook into Vulkan function calls for extra operations:
 	- Compare parameters against the spec to detect misuse
@@ -50,3 +50,49 @@ Optional components that hook into Vulkan function calls for extra operations:
 	- Checking thread safety by tracking the threads that calls originate from
 	- Logging every call and its parameters to the standard output
 	- Tracing Vulkan calls for profiling and replaying
+
+--> For debugging and ensuring that code works on multiple drivers
+
+_______________________________________________________________________________
+
+Physical Devices & Queue Families
+
+* Create:
+	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+	uint32_t physicalDeviceCount = 0;
+	VkPhysicalDevice* physicalDevices = (VkPhysicalDevice*) malloc(sizeof(VkPhysicalDevice) * physicalDeviceCount);	
+	vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, NULL);
+	if (physicalDeviceCount == 0) {
+    	printf("No devices with Vulkan support.\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	/* Check if device is suitable */
+	
+	for (int i = 0; i < physicalDeviceCount; i++) {
+    	if (IsDeviceSuitable(physicalDevices[i])) {
+        	physicalDevice = physicalDevices[i];
+        	break;
+    	}
+	}
+
+	if (physicalDevice == VK_NULL_HANDLE) {
+    	printf("Failed to find a suitable physical device.\n");
+	}
+	
+	bool IsDeviceSuitable(VkPhysicalDevice device)
+	{
+		VkPhysicalDeviceProperties deviceProperties;
+    	VkPhysicalDeviceFeatures deviceFeatures;
+    	vkGetPhysicalDeviceProperties(device, &deviceProperties);
+    	vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+		
+		return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && deviceFeatures.geometryShader;
+	}
+	
+
+* Destroy:
+	free(physicalDevices);
+_______________________________________________________________________________
+
+Logical Devices & Queues

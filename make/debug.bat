@@ -1,2 +1,2 @@
 @echo off
-devenv ../bin/glfw_main.exe
+devenv ../bin/sdl2_main.exe

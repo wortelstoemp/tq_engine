@@ -1,2 +1,2 @@
 @echo off
-call ..\bin\glfw_main.exe
+call ..\bin\sdl2_main.exe
