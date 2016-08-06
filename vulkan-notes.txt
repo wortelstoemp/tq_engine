@@ -60,8 +60,8 @@ Physical Devices & Queue Families
 * Create:
 	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 	uint32_t physicalDeviceCount = 0;
-	VkPhysicalDevice* physicalDevices = (VkPhysicalDevice*) malloc(sizeof(VkPhysicalDevice) * physicalDeviceCount);	
 	vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, NULL);
+	VkPhysicalDevice* physicalDevices = (VkPhysicalDevice*) malloc(sizeof(VkPhysicalDevice) * physicalDeviceCount);	
 	if (physicalDeviceCount == 0) {
     	printf("No devices with Vulkan support.\n");
 		exit(EXIT_FAILURE);

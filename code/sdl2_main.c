@@ -468,6 +468,13 @@ int main(int argc, char* argv[])
 			0
 	);
 	
+	Input input;
+	{
+		int numKeys;
+		u8* keyboardState = (u8*) SDL_GetKeyboardState(&numKeys);
+		input = CreateInput(keyboardState, numKeys);
+	}
+	
 	VkInstance instance;
 	{
 		VkApplicationInfo appInfo;
@@ -488,30 +495,97 @@ int main(int argc, char* argv[])
 		instanceCreateInfo.ppEnabledLayerNames = NULL;
 	
 		unsigned int extensionCount = 0;
-		char** extensions = SDL_AllocVulkanInstanceExtensions(&extensionCount);
+		char** extensions = SDLTQ_AllocVulkanInstanceExtensions(&extensionCount);
 		instanceCreateInfo.enabledExtensionCount = extensionCount;
 		instanceCreateInfo.ppEnabledExtensionNames = extensions;
 		instanceCreateInfo.enabledLayerCount = 0;
 	
 		if (vkCreateInstance(&instanceCreateInfo, NULL, &instance) != VK_SUCCESS) {
 			printf("Couldn't create VkInstance.\n");
-			SDL_FreeVulkanInstanceExtensions(extensions);
+			SDLTQ_FreeVulkanInstanceExtensions(extensions);
 			exit(EXIT_FAILURE);
 		}
 		
-		SDL_FreeVulkanInstanceExtensions(extensions);
+		SDLTQ_FreeVulkanInstanceExtensions(extensions);
 	}
 	
 	VkSurfaceKHR surface;
-    if (!SDL_CreateVulkanSurface(instance, window, NULL, &surface)) {
+    if (!SDLTQ_CreateVulkanSurface(instance, window, NULL, &surface)) {
         printf("SDL_CreateVulkanSurface failed: %s\n", SDL_GetError());
 		exit(EXIT_FAILURE);
 	}
 	
+	VkPhysicalDevice gpu = VK_NULL_HANDLE;
+    {
+        uint32_t numGPUs;
+        if (vkEnumeratePhysicalDevices(instance, &numGPUs, NULL) != VK_SUCCESS) {
+			printf("Can't enumerate GPU's.\n");
+			exit(EXIT_FAILURE);
+		}
+
+        if (numGPUs > 0) {
+            VkPhysicalDevice* gpus = malloc(numGPUs * sizeof(VkPhysicalDevice));
+           	if (vkEnumeratePhysicalDevices(instance, &numGPUs, gpus) != VK_SUCCESS) {
+				printf("Can't enumerate GPU's.\n");
+				free(gpus);
+				exit(EXIT_FAILURE);   
+			}
+			/* Choose suitable GPU (here first GPU) */
+            gpu = gpus[0];
+			free(gpus);
+			if (gpu == VK_NULL_HANDLE) {
+    			printf("Failed to find a suitable GPU.\n");
+			}	
+        }
+		
+		/* Check for Queue Families*/
+		
+		uint32_t queueFamilyIndex = -1;
+        uint32_t numQueues = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(gpu, &numQueues, NULL);
+        VkQueueFamilyProperties* queueProperties = malloc(numQueues * sizeof(VkQueueFamilyProperties));
+        vkGetPhysicalDeviceQueueFamilyProperties(gpu, &numQueues, queueProperties);
+        if (numQueues < 1) {
+			printf("Can't get GPU Queue Family Properties.\n");
+			free(queueProperties);
+			exit(EXIT_FAILURE);
+		}
+
+        for (uint32_t i = 0; i < numQueues; i++) {
+        	VkBool32 supported;
+            vkGetPhysicalDeviceSurfaceSupportKHR(gpu, i, surface, &supported);
+            if (supported && (queueProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
+            	queueFamilyIndex = i;
+            	break;
+            }
+        }
+		free(queueProperties);
+        if (queueFamilyIndex == -1) {
+			printf("Can't get suitable GPU Queue Family.\n");
+			exit(EXIT_FAILURE);
+		}
+    }
+	
+	VkDevice device;
+    VkQueue queue;
+    VkCommandPool commandPool;
+	
 	/* Update */
+	{
+		bool isRunning = true;
+		float dt = 0.0f;
+		Clock clock = CreateClock(60);
+		StartClock(&clock);
+		
+		while (isRunning) {
+			dt = CalcClockDelta(&clock);
+			isRunning = HandleEvents(&input);
+		}
+	}
 	
 	/* Shutdown */
 	vkDestroyInstance(instance, NULL);
+	DestroyInput(&input);
 	SDL_Quit();
 	
 	// Renderer renderer = CreateRenderer(width, height);

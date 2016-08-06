@@ -2,6 +2,8 @@
 
 /*
     NOTE: Change include paths below if necessary!
+          Also, functions are prefixed SDLTQ_ to make
+          sure it doesn't clash with future SDL intentions.
     
     Usage code:
     
@@ -12,23 +14,23 @@
     VkInstanceCreateInfo instanceCreateInfo;
     ...
     unsigned int extensionCount = 0;
-->  char** extensions = SDL_AllocVulkanInstanceExtensions(&extensionCount);
+->  char** extensions = SDLTQ_AllocVulkanInstanceExtensions(&extensionCount);
     instanceCreateInfo.enabledExtensionCount = extensionCount;
 	instanceCreateInfo.ppEnabledExtensionNames = extensions;
     
     if (vkCreateInstance(&instanceCreateInfo, NULL, &instance) != VK_SUCCESS) {
 	    printf("Couldn't create VkInstance.\n");
-->		SDL_FreeVulkanInstanceExtensions(extensions);
+->		SDLTQ_FreeVulkanInstanceExtensions(extensions);
 		exit(EXIT_FAILURE);
 	}
 		
-->  SDL_FreeVulkanInstanceExtensions(extensions)
+->  SDLTQ_FreeVulkanInstanceExtensions(extensions)
     
     2) Creating a VkSurfaceKHR:
     
     VkSurfaceKHR surface;
-->  if (!SDL_CreateVulkanSurface(instance, window, NULL, &surface)) {
-        printf("SDL_CreateVulkanSurface failed: %s\n", SDL_GetError());
+->  if (!SDLTQ_CreateVulkanSurface(instance, window, NULL, &surface)) {
+        printf("SDLTQ_CreateVulkanSurface failed: %s\n", SDL_GetError());
 		exit(EXIT_FAILURE);
 	}
 */
@@ -49,7 +51,7 @@
 #include <vulkan/vulkan.h>
 #include <sdl/SDL_syswm.h>
 
-char** SDL_AllocVulkanInstanceExtensions(unsigned int* count)
+char** SDLTQ_AllocVulkanInstanceExtensions(unsigned int* count)
 {
     const char* driver = SDL_GetCurrentVideoDriver();
     const unsigned int nrExtensions = 2;
@@ -91,7 +93,7 @@ char** SDL_AllocVulkanInstanceExtensions(unsigned int* count)
     return NULL;
 }
 
-void SDL_FreeVulkanInstanceExtensions(char** extensions)
+void SDLTQ_FreeVulkanInstanceExtensions(char** extensions)
 {
     if (!extensions) {
         return;
@@ -99,7 +101,7 @@ void SDL_FreeVulkanInstanceExtensions(char** extensions)
     free(extensions);
 }
 
-SDL_bool SDL_CreateVulkanSurface(VkInstance instance, SDL_Window* window, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface)
+SDL_bool SDLTQ_CreateVulkanSurface(VkInstance instance, SDL_Window* window, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface)
 {
     VkResult err;
 #ifdef _WIN32
