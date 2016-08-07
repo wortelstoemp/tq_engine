@@ -524,7 +524,7 @@ int main(int argc, char* argv[])
 		}
 
         if (numGPUs > 0) {
-            VkPhysicalDevice* gpus = malloc(numGPUs * sizeof(VkPhysicalDevice));
+			VkPhysicalDevice* gpus = malloc(numGPUs * sizeof(VkPhysicalDevice));
            	if (vkEnumeratePhysicalDevices(instance, &numGPUs, gpus) != VK_SUCCESS) {
 				printf("Can't enumerate GPU's.\n");
 				free(gpus);
@@ -537,7 +537,11 @@ int main(int argc, char* argv[])
     			printf("Failed to find a suitable GPU.\n");
 			}	
         }
-		
+	}
+	
+	VkDevice device = VK_NULL_HANDLE;
+	VkQueue queue;
+	{	
 		/* Check for Queue Families*/
 		
 		uint32_t queueFamilyIndex = -1;
@@ -564,11 +568,35 @@ int main(int argc, char* argv[])
 			printf("Can't get suitable GPU Queue Family.\n");
 			exit(EXIT_FAILURE);
 		}
-    }
-	
-	VkDevice device;
-    VkQueue queue;
-    VkCommandPool commandPool;
+		
+		/* Only one queue & multiple command buffers per thread */
+		/* Submit command buffers to queue on main thread */
+		VkDeviceQueueCreateInfo queueCreateInfo;
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.pNext = NULL;
+		queueCreateInfo.flags = 0;
+		queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
+        queueCreateInfo.queueCount = 1;
+        float queuePriority = 1.0f; /* for scheduling multiple queues */
+		queueCreateInfo.pQueuePriorities = &queuePriority;
+		
+		VkPhysicalDeviceFeatures deviceFeatures = {VK_FALSE};
+		VkDeviceCreateInfo deviceCreateInfo;
+        deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+		deviceCreateInfo.pNext = NULL;
+		deviceCreateInfo.flags = 0;
+        deviceCreateInfo.queueCreateInfoCount = 1;
+        deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+		deviceCreateInfo.enabledLayerCount = 0;
+		deviceCreateInfo.ppEnabledLayerNames = NULL;
+        deviceCreateInfo.enabledExtensionCount = 0;	/* TODO: swapchain -> +1 */
+        deviceCreateInfo.ppEnabledExtensionNames = NULL; /* TODO: swapchain */
+    	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
+		
+		if (vkCreateDevice(gpu, &deviceCreateInfo, NULL, &device) != VK_SUCCESS) {
+			printf("Can't create logical device");
+		}
+	}
 	
 	/* Update */
 	{
@@ -584,6 +612,7 @@ int main(int argc, char* argv[])
 	}
 	
 	/* Shutdown */
+	vkDestroyDevice(device, NULL);
 	vkDestroyInstance(instance, NULL);
 	DestroyInput(&input);
 	SDL_Quit();
