@@ -482,7 +482,7 @@ int main(int argc, char* argv[])
 	VkInstance instance;
 	{
 		VkApplicationInfo appInfo;
-		VkInstanceCreateInfo instanceCreateInfo;
+		VkInstanceCreateInfo createInfo;
 		
 		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 		appInfo.pNext = NULL;
@@ -492,11 +492,11 @@ int main(int argc, char* argv[])
 		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 		appInfo.apiVersion = VK_API_VERSION_1_0;
 
-		instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-		instanceCreateInfo.pNext = NULL;
-		instanceCreateInfo.flags = 0;
-		instanceCreateInfo.pApplicationInfo = &appInfo;
-		instanceCreateInfo.ppEnabledLayerNames = NULL;
+		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+		createInfo.pNext = NULL;
+		createInfo.flags = 0;
+		createInfo.pApplicationInfo = &appInfo;
+		createInfo.ppEnabledLayerNames = NULL;
 	
 		unsigned int extensionCount = 0;
 		char* extensions[SDLTQ_VULKAN_NUM_INSTANCE_EXTENSIONS];
@@ -504,11 +504,11 @@ int main(int argc, char* argv[])
 			printf("Error loading Vulkan Instance extensions: %s\n", SDL_GetError());			
 			exit(EXIT_FAILURE);
 		}
-		instanceCreateInfo.enabledExtensionCount = extensionCount;
-		instanceCreateInfo.ppEnabledExtensionNames = extensions;
-		instanceCreateInfo.enabledLayerCount = 0;
+		createInfo.enabledExtensionCount = extensionCount;
+		createInfo.ppEnabledExtensionNames = extensions;
+		createInfo.enabledLayerCount = 0;
 	
-		if (vkCreateInstance(&instanceCreateInfo, NULL, &instance) != VK_SUCCESS) {
+		if (vkCreateInstance(&createInfo, NULL, &instance) != VK_SUCCESS) {
 			printf("Couldn't create VkInstance.\n");
 			exit(EXIT_FAILURE);
 		}
@@ -619,7 +619,7 @@ int main(int argc, char* argv[])
 	{
 		/* Surface capabilities and swap extent */
 		VkSurfaceCapabilitiesKHR surfaceCapabilities;
-		VkExtent2D swapExtent;
+		VkExtent2D imageExtent;
 		{
 			if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &surfaceCapabilities) != VK_SUCCESS) {
 				printf("Vulkan renderer: Can't get surface capabilities.\n");			
@@ -627,10 +627,10 @@ int main(int argc, char* argv[])
 			}
 			
 			if (surfaceCapabilities.currentExtent.width == (uint32_t) -1) {
-        	    swapExtent.width = (uint32_t) windowWidth;
-        	    swapExtent.height = (uint32_t) windowHeight;
+        	    imageExtent.width = (uint32_t) windowWidth;
+        	    imageExtent.height = (uint32_t) windowHeight;
         	} else {
-        	    swapExtent = surfaceCapabilities.currentExtent;			
+        	    imageExtent = surfaceCapabilities.currentExtent;			
         	}
 		}
 		
@@ -673,7 +673,30 @@ int main(int argc, char* argv[])
 			}
 		}
 		
-		/* TODO: Create swapchain */
+		/* Create swapchain */
+		VkSwapchainCreateInfoKHR createInfo;
+		createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+		createInfo.pNext = NULL;
+		createInfo.flags = 0;		
+		createInfo.surface = surface;
+		createInfo.minImageCount = 0;
+		createInfo.imageFormat = surfaceFormat.format;		
+		createInfo.imageColorSpace = surfaceFormat.colorSpace;
+		createInfo.imageExtent = imageExtent;
+		createInfo.imageArrayLayers = 1;
+		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		createInfo.queueFamilyIndexCount = 0;
+		createInfo.pQueueFamilyIndices = NULL;
+		createInfo.preTransform = surfaceCapabilities.currentTransform;
+		createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+		createInfo.presentMode = presentMode;
+		createInfo.clipped = VK_TRUE;
+		createInfo.oldSwapchain = VK_NULL_HANDLE;
+		
+		if (vkCreateSwapchainKHR(device, &createInfo, NULL, &swapchain) != VK_SUCCESS) {
+			printf("Vulkan renderer: Failed to create swapchain.\n");
+		}
 	}
 	
 	/* Update */
@@ -690,6 +713,7 @@ int main(int argc, char* argv[])
 	}
 	
 	/* Shutdown */
+	vkDestroySwapchainKHR(device, swapchain, NULL);
 	vkDestroyDevice(device, NULL);
 	vkDestroySurfaceKHR(instance, surface, NULL);
 	vkDestroyInstance(instance, NULL);
