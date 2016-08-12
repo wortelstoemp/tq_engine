@@ -679,7 +679,16 @@ int main(int argc, char* argv[])
 		createInfo.pNext = NULL;
 		createInfo.flags = 0;		
 		createInfo.surface = surface;
-		createInfo.minImageCount = 0;
+		
+		uint32_t imageCount = surfaceCapabilities.minImageCount;
+		if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+			imageCount++;
+		}
+        if ((surfaceCapabilities.maxImageCount > 0) && (imageCount > surfaceCapabilities.maxImageCount)) {
+            imageCount = surfaceCapabilities.maxImageCount;
+        }
+		
+		createInfo.minImageCount = imageCount;
 		createInfo.imageFormat = surfaceFormat.format;		
 		createInfo.imageColorSpace = surfaceFormat.colorSpace;
 		createInfo.imageExtent = imageExtent;
@@ -698,6 +707,8 @@ int main(int argc, char* argv[])
 			printf("Vulkan renderer: Failed to create swapchain.\n");
 		}
 	}
+	
+	/* TODO: Retrieve swapchain images */
 	
 	/* Update */
 	{
