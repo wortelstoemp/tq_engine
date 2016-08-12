@@ -1,8 +1,8 @@
 # TQ Engine
 
-Rendering engine by Tom Quareme in ANSI C99. 
+Rendering engine by Tom Quareme in ANSI C99, but maybe Nominal/Orthodox C++ in the near future. 
 For simulation, games and other real-time stuff...
-Currently focused on rendering in particular (software / hardware).
+Currently focused on rendering in particular (using Vulkan).
 
 ## Build
 

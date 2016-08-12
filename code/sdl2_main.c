@@ -7,8 +7,8 @@
 
 #include "platform.h"
 #include "input.h"
-#include "render.h"
 /* #include "math.h" */
+#include "vk_render.h"
 
 Clock CreateClock(float fps)
 {
@@ -105,6 +105,7 @@ Window SDL2CreateWindow(const char* title, int width, int height, u32 flags)
 	return result;	
 }
 
+/*
 void SDL2DestroyWindow(Window* window)
 {
 	SDL_DestroyWindow(window->handle);
@@ -119,6 +120,7 @@ void SDL2SwapBuffers(Window* window, Renderer* renderer)
 	SDL_RenderCopy(window->renderer, window->frontBuffer, 0, 0);
 	SDL_RenderPresent(window->renderer);
 }
+*/
 
 enum Scancode
 {
@@ -495,23 +497,24 @@ int main(int argc, char* argv[])
 		instanceCreateInfo.ppEnabledLayerNames = NULL;
 	
 		unsigned int extensionCount = 0;
-		char** extensions = SDLTQ_AllocVulkanInstanceExtensions(&extensionCount);
+		char* extensions[SDLTQ_VULKAN_NUM_INSTANCE_EXTENSIONS];
+		if (!SDLTQ_LoadVulkanInstanceExtensions(extensions, &extensionCount)) {
+			printf("Error loading Vulkan Instance extensions: %s\n", SDL_GetError());			
+			exit(EXIT_FAILURE);
+		}
 		instanceCreateInfo.enabledExtensionCount = extensionCount;
 		instanceCreateInfo.ppEnabledExtensionNames = extensions;
 		instanceCreateInfo.enabledLayerCount = 0;
 	
 		if (vkCreateInstance(&instanceCreateInfo, NULL, &instance) != VK_SUCCESS) {
 			printf("Couldn't create VkInstance.\n");
-			SDLTQ_FreeVulkanInstanceExtensions(extensions);
 			exit(EXIT_FAILURE);
 		}
-		
-		SDLTQ_FreeVulkanInstanceExtensions(extensions);
 	}
 	
 	VkSurfaceKHR surface;
     if (!SDLTQ_CreateVulkanSurface(instance, window, NULL, &surface)) {
-        printf("SDL_CreateVulkanSurface failed: %s\n", SDL_GetError());
+        printf("SDLTQ_CreateVulkanSurface failed: %s\n", SDL_GetError());
 		exit(EXIT_FAILURE);
 	}
 	
@@ -522,17 +525,19 @@ int main(int argc, char* argv[])
 			printf("Can't enumerate GPU's.\n");
 			exit(EXIT_FAILURE);
 		}
-
+		
+		if (numGPUs > TQ_RENDERER_MAX_GPUS) {
+			numGPUs = TQ_RENDERER_MAX_GPUS;
+		}
+		
         if (numGPUs > 0) {
-			VkPhysicalDevice* gpus = malloc(numGPUs * sizeof(VkPhysicalDevice));
+			VkPhysicalDevice gpus[TQ_RENDERER_MAX_GPUS];
            	if (vkEnumeratePhysicalDevices(instance, &numGPUs, gpus) != VK_SUCCESS) {
 				printf("Can't enumerate GPU's.\n");
-				free(gpus);
 				exit(EXIT_FAILURE);   
 			}
 			/* Choose suitable GPU (here first GPU) */
             gpu = gpus[0];
-			free(gpus);
 			if (gpu == VK_NULL_HANDLE) {
     			printf("Failed to find a suitable GPU.\n");
 			}	
@@ -540,42 +545,45 @@ int main(int argc, char* argv[])
 	}
 	
 	VkDevice device = VK_NULL_HANDLE;
-	VkQueue queue;
+	/* Queues */
+	VkQueue presentationQueue;
 	{	
 		/* Check for Queue Families*/
 		
-		uint32_t queueFamilyIndex = -1;
-        uint32_t numQueues = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(gpu, &numQueues, NULL);
-        VkQueueFamilyProperties* queueProperties = malloc(numQueues * sizeof(VkQueueFamilyProperties));
+		uint32_t presentationQueueIndex = -1;
+		uint32_t numQueues = TQ_RENDERER_MAX_DEVICE_QUEUES;
+        VkQueueFamilyProperties queueProperties[TQ_RENDERER_MAX_QUEUE_FAMILY_PROPERTIES];
+		
         vkGetPhysicalDeviceQueueFamilyProperties(gpu, &numQueues, queueProperties);
         if (numQueues < 1) {
 			printf("Can't get GPU Queue Family Properties.\n");
-			free(queueProperties);
+			
 			exit(EXIT_FAILURE);
 		}
 
+		/* Queue familiy for presentation (surface) & graphics */
+		/* Might split those up and make API for multiple queues */
         for (uint32_t i = 0; i < numQueues; i++) {
-        	VkBool32 supported;
-            vkGetPhysicalDeviceSurfaceSupportKHR(gpu, i, surface, &supported);
-            if (supported && (queueProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
-            	queueFamilyIndex = i;
+        	VkBool32 presentationSupported;
+            vkGetPhysicalDeviceSurfaceSupportKHR(gpu, i, surface, &presentationSupported);
+            if (presentationSupported && (queueProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
+            	presentationQueueIndex = i;
             	break;
             }
         }
-		free(queueProperties);
-        if (queueFamilyIndex == -1) {
+        if (presentationQueueIndex == -1) {
 			printf("Can't get suitable GPU Queue Family.\n");
 			exit(EXIT_FAILURE);
 		}
 		
 		/* Only one queue & multiple command buffers per thread */
 		/* Submit command buffers to queue on main thread */
+		/* NOTE: Use list of queueCreateInfo's in future */
 		VkDeviceQueueCreateInfo queueCreateInfo;
         queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queueCreateInfo.pNext = NULL;
 		queueCreateInfo.flags = 0;
-		queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
+		queueCreateInfo.queueFamilyIndex = presentationQueueIndex;
         queueCreateInfo.queueCount = 1;
         float queuePriority = 1.0f; /* for scheduling multiple queues */
 		queueCreateInfo.pQueuePriorities = &queuePriority;
@@ -585,17 +593,24 @@ int main(int argc, char* argv[])
         deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 		deviceCreateInfo.pNext = NULL;
 		deviceCreateInfo.flags = 0;
-        deviceCreateInfo.queueCreateInfoCount = 1;
-        deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+        deviceCreateInfo.queueCreateInfoCount = 1; /* Might change to list*/
+        deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo; /* idem */
 		deviceCreateInfo.enabledLayerCount = 0;
 		deviceCreateInfo.ppEnabledLayerNames = NULL;
-        deviceCreateInfo.enabledExtensionCount = 0;	/* TODO: swapchain -> +1 */
-        deviceCreateInfo.ppEnabledExtensionNames = NULL; /* TODO: swapchain */
     	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
+		
+		/* Extensions */
+		const uint32_t extensionCount = 1;
+		char* extensions[1] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME }; 
+        deviceCreateInfo.enabledExtensionCount = extensionCount;
+        deviceCreateInfo.ppEnabledExtensionNames = extensions;
 		
 		if (vkCreateDevice(gpu, &deviceCreateInfo, NULL, &device) != VK_SUCCESS) {
 			printf("Can't create logical device");
 		}
+		
+		/* Create the queues */
+		vkGetDeviceQueue(device, presentationQueueIndex, 0, &presentationQueue);
 	}
 	
 	/* Update */
@@ -613,8 +628,11 @@ int main(int argc, char* argv[])
 	
 	/* Shutdown */
 	vkDestroyDevice(device, NULL);
+	vkDestroySurfaceKHR(instance, surface, NULL);
 	vkDestroyInstance(instance, NULL);
+	
 	DestroyInput(&input);
+	SDL_DestroyWindow(window);
 	SDL_Quit();
 	
 	// Renderer renderer = CreateRenderer(width, height);
