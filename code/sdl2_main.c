@@ -461,12 +461,14 @@ int main(int argc, char* argv[])
 		exit(EXIT_FAILURE);
 	}
 	
+	int windowWidth = 800;
+	int windowHeight = 600;
 	SDL_Window* window = SDL_CreateWindow(
 			"TQ Engine",
 			SDL_WINDOWPOS_UNDEFINED,
 			SDL_WINDOWPOS_UNDEFINED,
-			800,
-			600,
+			windowWidth,
+			windowHeight,
 			0
 	);
 	
@@ -522,7 +524,7 @@ int main(int argc, char* argv[])
     {
         uint32_t numGPUs;
         if (vkEnumeratePhysicalDevices(instance, &numGPUs, NULL) != VK_SUCCESS) {
-			printf("Can't enumerate GPU's.\n");
+			printf("Vulkan renderer: Can't enumerate GPU's.\n");
 			exit(EXIT_FAILURE);
 		}
 		
@@ -533,20 +535,20 @@ int main(int argc, char* argv[])
         if (numGPUs > 0) {
 			VkPhysicalDevice gpus[TQ_RENDERER_MAX_GPUS];
            	if (vkEnumeratePhysicalDevices(instance, &numGPUs, gpus) != VK_SUCCESS) {
-				printf("Can't enumerate GPU's.\n");
+				printf("Vulkan renderer: Can't enumerate GPU's.\n");
 				exit(EXIT_FAILURE);   
 			}
 			/* Choose suitable GPU (here first GPU) */
             gpu = gpus[0];
 			if (gpu == VK_NULL_HANDLE) {
-    			printf("Failed to find a suitable GPU.\n");
+    			printf("Vulkan renderer: Failed to find a suitable GPU.\n");
 			}	
         }
 	}
 	
 	VkDevice device = VK_NULL_HANDLE;
-	/* Queues */
 	VkQueue presentationQueue;
+	/* TODO: Command pool? */
 	{	
 		/* Check for Queue Families*/
 		
@@ -556,8 +558,7 @@ int main(int argc, char* argv[])
 		
         vkGetPhysicalDeviceQueueFamilyProperties(gpu, &numQueues, queueProperties);
         if (numQueues < 1) {
-			printf("Can't get GPU Queue Family Properties.\n");
-			
+			printf("Vulkan renderer: Can't get GPU Queue Family Properties.\n");
 			exit(EXIT_FAILURE);
 		}
 
@@ -572,7 +573,7 @@ int main(int argc, char* argv[])
             }
         }
         if (presentationQueueIndex == -1) {
-			printf("Can't get suitable GPU Queue Family.\n");
+			printf("Vulkan Renderer: Can't get suitable GPU Queue Family.\n");
 			exit(EXIT_FAILURE);
 		}
 		
@@ -606,11 +607,73 @@ int main(int argc, char* argv[])
         deviceCreateInfo.ppEnabledExtensionNames = extensions;
 		
 		if (vkCreateDevice(gpu, &deviceCreateInfo, NULL, &device) != VK_SUCCESS) {
-			printf("Can't create logical device");
+			printf("Vulkan renderer: Can't create logical device.\n");
+			exit(EXIT_FAILURE);
 		}
 		
 		/* Create the queues */
 		vkGetDeviceQueue(device, presentationQueueIndex, 0, &presentationQueue);
+	}
+	
+	VkSwapchainKHR swapchain;
+	{
+		/* Surface capabilities and swap extent */
+		VkSurfaceCapabilitiesKHR surfaceCapabilities;
+		VkExtent2D swapExtent;
+		{
+			if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &surfaceCapabilities) != VK_SUCCESS) {
+				printf("Vulkan renderer: Can't get surface capabilities.\n");			
+				exit(EXIT_FAILURE);
+			}
+			
+			if (surfaceCapabilities.currentExtent.width == (uint32_t) -1) {
+        	    swapExtent.width = (uint32_t) windowWidth;
+        	    swapExtent.height = (uint32_t) windowHeight;
+        	} else {
+        	    swapExtent = surfaceCapabilities.currentExtent;			
+        	}
+		}
+		
+		/* Choose surface format */	
+		VkSurfaceFormatKHR surfaceFormat;
+		{			
+			uint32_t formatCount;
+			VkSurfaceFormatKHR formats[VK_FORMAT_RANGE_SIZE] = {{VK_FORMAT_MAX_ENUM, VK_COLOR_SPACE_MAX_ENUM_KHR}};
+        	if (vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &formatCount, formats) != VK_SUCCESS) {
+				printf("Vulkan renderer: Can't get surface formats.\n");			
+				exit(EXIT_FAILURE);
+			}
+			
+			/* TODO: moght revisit this code? */
+			if (formatCount == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
+        	    surfaceFormat.format = VK_FORMAT_B8G8R8A8_UNORM;
+				surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        	} else {
+        	    surfaceFormat.format = formats[0].format;
+        	    surfaceFormat.colorSpace = formats[0].colorSpace;			
+        	}
+		}
+		
+		/* Choose present mode */
+		VkPresentModeKHR presentMode;
+		{	
+			uint32_t presentModeCount;
+			VkPresentModeKHR presentModes[VK_PRESENT_MODE_RANGE_SIZE_KHR] = {VK_PRESENT_MODE_MAX_ENUM_KHR};
+			if (vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &presentModeCount, presentModes) != VK_SUCCESS) {
+				printf("Vulkan renderer: Can't get surface present modes.\n");
+				exit(EXIT_FAILURE);
+			}
+			
+			/* Choose triple buffering if it's available */
+			for (uint32_t i = 0; i < presentModeCount; i++) {
+				if (presentModes[i] = VK_PRESENT_MODE_MAILBOX_KHR) {
+					presentMode = presentModes[i];
+					break;
+				}
+			}
+		}
+		
+		/* TODO: Create swapchain */
 	}
 	
 	/* Update */
