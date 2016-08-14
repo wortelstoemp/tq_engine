@@ -615,6 +615,7 @@ int main(int argc, char* argv[])
 		vkGetDeviceQueue(device, presentationQueueIndex, 0, &presentationQueue);
 	}
 	
+	/* Create swapchain */
 	VkSwapchainKHR swapchain = NULL;
 	VkImage* swapchainImages = NULL;
 	uint32_t swapchainImageCount;
@@ -637,7 +638,7 @@ int main(int argc, char* argv[])
         	}
 		}
 		
-		/* Choose surface format */
+		/* Choose swapchain image format */
 		VkSurfaceFormatKHR surfaceFormat;
 		{			
 			uint32_t formatCount;
@@ -647,7 +648,7 @@ int main(int argc, char* argv[])
 				exit(EXIT_FAILURE);
 			}
 			
-			/* TODO: moght revisit this code? */
+			/* TODO: might revisit this code? */
 			if (formatCount == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
         	    surfaceFormat.format = VK_FORMAT_B8G8R8A8_UNORM;
 				surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
@@ -712,19 +713,19 @@ int main(int argc, char* argv[])
 			printf("Vulkan renderer: Failed to create swapchain.\n");
 			exit(EXIT_FAILURE);			
 		}
-	}
 		
-	/* Retrieve swapchain images */
-	/* These are automatically freed when destroying swapchain */	
-	if (vkGetSwapchainImagesKHR(device, swapchain, &swapchainImageCount, NULL) != VK_SUCCESS) {
-		printf("Vulkan renderer: Failed to retrieve swapchain images.\n");	
-		exit(EXIT_FAILURE);			
-	}
-	swapchainImages = (VkImage*) malloc(swapchainImageCount * sizeof(VkImage));
+		/* Retrieve swapchain images */
+		/* These are automatically freed when destroying swapchain */	
+		if (vkGetSwapchainImagesKHR(device, swapchain, &swapchainImageCount, NULL) != VK_SUCCESS) {
+			printf("Vulkan renderer: Failed to retrieve swapchain images.\n");	
+			exit(EXIT_FAILURE);			
+		}
+		swapchainImages = (VkImage*) malloc(swapchainImageCount * sizeof(VkImage));
 		
-	if (vkGetSwapchainImagesKHR(device, swapchain, &swapchainImageCount, swapchainImages) != VK_SUCCESS) {
-		printf("Vulkan renderer: Failed to retrieve swapchain images.\n");
-		exit(EXIT_FAILURE);								
+		if (vkGetSwapchainImagesKHR(device, swapchain, &swapchainImageCount, swapchainImages) != VK_SUCCESS) {
+			printf("Vulkan renderer: Failed to retrieve swapchain images.\n");
+			exit(EXIT_FAILURE);								
+		}
 	}
 		
 	/* Create image views for swapchain images */
@@ -753,6 +754,8 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
+	
+	/* TODO: Create graphics pipeline */
 	
 	/* Update */
 	{
