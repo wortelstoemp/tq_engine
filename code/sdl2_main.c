@@ -520,7 +520,7 @@ int main(int argc, char* argv[])
 		exit(EXIT_FAILURE);
 	}
 	
-	VkPhysicalDevice gpu = VK_NULL_HANDLE;
+	VkPhysicalDevice gpu;
     {
         uint32_t numGPUs;
         if (vkEnumeratePhysicalDevices(instance, &numGPUs, NULL) != VK_SUCCESS) {
@@ -615,11 +615,14 @@ int main(int argc, char* argv[])
 		vkGetDeviceQueue(device, presentationQueueIndex, 0, &presentationQueue);
 	}
 	
-	VkSwapchainKHR swapchain;
+	VkSwapchainKHR swapchain = NULL;
+	VkImage* swapchainImages = NULL;
+	uint32_t swapchainImageCount;
+	VkFormat swapchainImageFormat;
+	VkExtent2D swapchainExtent;
 	{
 		/* Surface capabilities and swap extent */
 		VkSurfaceCapabilitiesKHR surfaceCapabilities;
-		VkExtent2D imageExtent;
 		{
 			if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &surfaceCapabilities) != VK_SUCCESS) {
 				printf("Vulkan renderer: Can't get surface capabilities.\n");			
@@ -627,14 +630,14 @@ int main(int argc, char* argv[])
 			}
 			
 			if (surfaceCapabilities.currentExtent.width == (uint32_t) -1) {
-        	    imageExtent.width = (uint32_t) windowWidth;
-        	    imageExtent.height = (uint32_t) windowHeight;
+        	    swapchainExtent.width = (uint32_t) windowWidth;
+        	    swapchainExtent.height = (uint32_t) windowHeight;
         	} else {
-        	    imageExtent = surfaceCapabilities.currentExtent;			
+        	    swapchainExtent = surfaceCapabilities.currentExtent;			
         	}
 		}
 		
-		/* Choose surface format */	
+		/* Choose surface format */
 		VkSurfaceFormatKHR surfaceFormat;
 		{			
 			uint32_t formatCount;
@@ -652,6 +655,8 @@ int main(int argc, char* argv[])
         	    surfaceFormat.format = formats[0].format;
         	    surfaceFormat.colorSpace = formats[0].colorSpace;			
         	}
+			
+			swapchainImageFormat = surfaceFormat.format;
 		}
 		
 		/* Choose present mode */
@@ -680,18 +685,18 @@ int main(int argc, char* argv[])
 		createInfo.flags = 0;		
 		createInfo.surface = surface;
 		
-		uint32_t imageCount = surfaceCapabilities.minImageCount;
+		swapchainImageCount = surfaceCapabilities.minImageCount;
 		if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-			imageCount++;
+			swapchainImageCount++;
 		}
-        if ((surfaceCapabilities.maxImageCount > 0) && (imageCount > surfaceCapabilities.maxImageCount)) {
-            imageCount = surfaceCapabilities.maxImageCount;
+        if ((surfaceCapabilities.maxImageCount > 0) && (swapchainImageCount > surfaceCapabilities.maxImageCount)) {
+            swapchainImageCount = surfaceCapabilities.maxImageCount;
         }
 		
-		createInfo.minImageCount = imageCount;
+		createInfo.minImageCount = swapchainImageCount;
 		createInfo.imageFormat = surfaceFormat.format;		
 		createInfo.imageColorSpace = surfaceFormat.colorSpace;
-		createInfo.imageExtent = imageExtent;
+		createInfo.imageExtent = swapchainExtent;
 		createInfo.imageArrayLayers = 1;
 		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 		createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -705,10 +710,49 @@ int main(int argc, char* argv[])
 		
 		if (vkCreateSwapchainKHR(device, &createInfo, NULL, &swapchain) != VK_SUCCESS) {
 			printf("Vulkan renderer: Failed to create swapchain.\n");
+			exit(EXIT_FAILURE);			
 		}
 	}
-	
-	/* TODO: Retrieve swapchain images */
+		
+	/* Retrieve swapchain images */
+	/* These are automatically freed when destroying swapchain */	
+	if (vkGetSwapchainImagesKHR(device, swapchain, &swapchainImageCount, NULL) != VK_SUCCESS) {
+		printf("Vulkan renderer: Failed to retrieve swapchain images.\n");	
+		exit(EXIT_FAILURE);			
+	}
+	swapchainImages = (VkImage*) malloc(swapchainImageCount * sizeof(VkImage));
+		
+	if (vkGetSwapchainImagesKHR(device, swapchain, &swapchainImageCount, swapchainImages) != VK_SUCCESS) {
+		printf("Vulkan renderer: Failed to retrieve swapchain images.\n");
+		exit(EXIT_FAILURE);								
+	}
+		
+	/* Create image views for swapchain images */
+	VkImageView* swapchainImageViews = (VkImageView*) malloc(swapchainImageCount * sizeof(VkImageView));	
+	{	
+		for (uint32_t i = 0; i < swapchainImageCount; i++) {
+			VkImageViewCreateInfo createInfo;
+			createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+			createInfo.pNext = NULL;
+			createInfo.flags = 0;
+			createInfo.image = swapchainImages[i];
+			createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			createInfo.format = swapchainImageFormat;
+			createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+			createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+			createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+			createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+			createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			createInfo.subresourceRange.baseMipLevel = 0;
+			createInfo.subresourceRange.levelCount = 1;
+			createInfo.subresourceRange.baseArrayLayer = 0;
+			createInfo.subresourceRange.layerCount = 1;
+			
+			if (vkCreateImageView(device, &createInfo, NULL, &swapchainImageViews[i]) != VK_SUCCESS) {
+				printf("Vulkan renderer: Failed to create image views.\n");				
+			}
+		}
+	}
 	
 	/* Update */
 	{
@@ -724,14 +768,20 @@ int main(int argc, char* argv[])
 	}
 	
 	/* Shutdown */
-	vkDestroySwapchainKHR(device, swapchain, NULL);
-	vkDestroyDevice(device, NULL);
-	vkDestroySurfaceKHR(instance, surface, NULL);
-	vkDestroyInstance(instance, NULL);
+	{
+		for (uint32_t i = 0; i < swapchainImageCount; i++) {
+			vkDestroyImageView(device, swapchainImageViews[i], NULL);
+		}
+		free(swapchainImageViews);
+		vkDestroySwapchainKHR(device, swapchain, NULL);
+		vkDestroyDevice(device, NULL);
+		vkDestroySurfaceKHR(instance, surface, NULL);
+		vkDestroyInstance(instance, NULL);
 	
-	DestroyInput(&input);
-	SDL_DestroyWindow(window);
-	SDL_Quit();
+		DestroyInput(&input);
+		SDL_DestroyWindow(window);
+		SDL_Quit();
+	}
 	
 	// Renderer renderer = CreateRenderer(width, height);
 	
