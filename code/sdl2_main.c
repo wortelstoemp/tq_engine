@@ -6,6 +6,7 @@
 #include "sdl_vulkan.h"
 
 #include "platform.h"
+#include "file.h"
 #include "input.h"
 /* #include "math.h" */
 #include "vk_render.h"
@@ -755,8 +756,102 @@ int main(int argc, char* argv[])
 		}
 	}
 	
-	/* TODO: Create graphics pipeline */
+	/* TODO: Create render pass */
+	VkRenderPass renderPass = VK_NULL_HANDLE;
+	{
+		VkAttachmentDescription colorAttachment;
+		colorAttachment.format = swapchainImageFormat;
+		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		
+		VkAttachmentReference colorAttachmentRef;
+		colorAttachmentRef.attachment = 0;
+		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		
+		VkSubpassDescription subPass;
+		subPass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		subPass.colorAttachmentCount = 1;
+		subPass.pColorAttachments = &colorAttachmentRef;
+		
+		VkRenderPassCreateInfo renderPassInfo;
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.attachmentCount = 1;
+        renderPassInfo.pAttachments = &colorAttachment;
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subPass;
+		
+		/*if (vkCreateRenderPass(device, &renderPassInfo, NULL, &renderPass) != VK_SUCCESS) {
+            printf("Vulkan renderer: Failed to create render pass.\n");
+        }*/
+	}
 	
+	/* TODO: Create graphics pipeline */		
+	
+	/* Vertex shader */
+	VkShaderModule vertexShader = VK_NULL_HANDLE;
+	long vertCodeSize = 0;
+	char* vertCode = tqReadFile("../data/shaders/bin/basic-vert.spv", &vertCodeSize);
+	{
+		VkShaderModuleCreateInfo vertShaderCreateInfo;
+		vertShaderCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		vertShaderCreateInfo.pNext = NULL;
+		vertShaderCreateInfo.flags = 0;		
+		vertShaderCreateInfo.codeSize = vertCodeSize;
+		vertShaderCreateInfo.pCode = (uint32_t*) vertCode;
+
+		if (vkCreateShaderModule(device, &vertShaderCreateInfo, NULL, &vertexShader) != VK_SUCCESS) {
+    		printf("Vulkan renderer: Failed to create shader module!\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+	
+	/* Fragment shader */
+	VkShaderModule fragmentShader = VK_NULL_HANDLE;
+	long fragCodeSize = 0;
+	char* fragCode = tqReadFile("../data/shaders/bin/basic-frag.spv", &fragCodeSize);
+	{
+		VkShaderModuleCreateInfo fragShaderCreateInfo;
+		fragShaderCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		fragShaderCreateInfo.pNext = NULL;
+		fragShaderCreateInfo.flags = 0;		
+		fragShaderCreateInfo.codeSize = fragCodeSize;
+		fragShaderCreateInfo.pCode = (uint32_t*) fragCode;
+
+		if (vkCreateShaderModule(device, &fragShaderCreateInfo, NULL, &fragmentShader) != VK_SUCCESS) {
+    		printf("Vulkan renderer: Failed to create shader module!\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+	
+	VkPipelineShaderStageCreateInfo shaderStages[2];
+	{
+		VkPipelineShaderStageCreateInfo vertShaderStageInfo;
+		/*vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		vertShaderStageInfo.pNext = NULL;
+		vertShaderStageInfo.flags = 0;
+		vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+		vertShaderStageInfo.module = vertexShader;
+		vertShaderStageInfo.pName = "main";
+		vertShaderStageInfo.pSpecializationInfo = NULL;*/	
+		
+		VkPipelineShaderStageCreateInfo fragShaderStageInfo;
+		/*fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		fragShaderStageInfo.pNext = NULL;
+		fragShaderStageInfo.flags = 0;
+		fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+		fragShaderStageInfo.module = fragmentShader;
+		fragShaderStageInfo.pName = "main";
+		fragShaderStageInfo.pSpecializationInfo = NULL;*/
+		
+		/*shaderStages[0] = vertShaderStageInfo;
+		shaderStages[1] = fragShaderStageInfo;*/		
+	}
+		
 	/* Update */
 	{
 		bool isRunning = true;
@@ -772,6 +867,11 @@ int main(int argc, char* argv[])
 	
 	/* Shutdown */
 	{
+		vkDestroyShaderModule(device, fragmentShader, NULL);
+		free(fragCode);
+		vkDestroyShaderModule(device, vertexShader, NULL);
+		free(vertCode);
+		/*vkDestroyRenderPass(device, renderPass, NULL);*/	
 		for (uint32_t i = 0; i < swapchainImageCount; i++) {
 			vkDestroyImageView(device, swapchainImageViews[i], NULL);
 		}
@@ -785,6 +885,9 @@ int main(int argc, char* argv[])
 		SDL_DestroyWindow(window);
 		SDL_Quit();
 	}
+	
+	return 0;
+}
 	
 	// Renderer renderer = CreateRenderer(width, height);
 	
@@ -948,5 +1051,5 @@ int main(int argc, char* argv[])
 	// DestroyRenderer(&renderer);
 	// SDL2DestroyWindow(&window);
 	
-	return 0;
-}
+	// return 0;
+// }

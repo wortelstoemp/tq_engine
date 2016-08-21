@@ -125,14 +125,16 @@ SDL_bool SDLTQ_CreateVulkanSurface(VkInstance instance, SDL_Window* window, cons
 #ifdef _WIN32
         case SDL_SYSWM_WINDOWS:
         {
+            /*
             TCHAR* className = NULL;
             GetClassNameA(wminfo.info.win.window, className, 256);
             WNDCLASS wce;
             GetClassInfo(GetModuleHandle(NULL), className, &wce);
+            */
             sci.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
             sci.pNext = NULL;
             sci.flags = 0;
-            sci.hinstance = wce.hInstance;
+            sci.hinstance = GetModuleHandle(NULL);/*wce.hInstance;*/
             sci.hwnd = wminfo.info.win.window;
             err = vkCreateWin32SurfaceKHR(instance, &sci, allocator, surface);
         } break;
