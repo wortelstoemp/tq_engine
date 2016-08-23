@@ -507,6 +507,9 @@ int main(int argc, char* argv[])
 		exit(EXIT_FAILURE);
 	}
 	
+	/* Create validation layers */
+	const char* validationLayers[] = { "VK_LAYER_LUNARG_standard_validation" };
+	
 	VkPhysicalDevice gpu;
     {
         uint32_t numGPUs;
@@ -535,7 +538,6 @@ int main(int argc, char* argv[])
 	
 	VkDevice device = VK_NULL_HANDLE;
 	VkQueue presentationQueue;
-	/* TODO: Command pool? */
 	{	
 		/* Check for Queue Families*/
 		
@@ -589,7 +591,7 @@ int main(int argc, char* argv[])
 		
 		/* Extensions */
 		const uint32_t extensionCount = 1;
-		char* extensions[1] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME }; 
+		const char* extensions[1] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME }; 
         deviceCreateInfo.enabledExtensionCount = extensionCount;
         deviceCreateInfo.ppEnabledExtensionNames = extensions;
 		
@@ -651,7 +653,7 @@ int main(int argc, char* argv[])
 		VkPresentModeKHR presentMode;
 		{	
 			uint32_t presentModeCount;
-			VkPresentModeKHR presentModes[VK_PRESENT_MODE_RANGE_SIZE_KHR] = {VK_PRESENT_MODE_MAX_ENUM_KHR};
+			VkPresentModeKHR presentModes[] = { VK_PRESENT_MODE_MAX_ENUM_KHR };
 			if (vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &presentModeCount, presentModes) != VK_SUCCESS) {
 				printf("Vulkan renderer: Can't get surface present modes.\n");
 				exit(EXIT_FAILURE);
@@ -826,7 +828,7 @@ int main(int argc, char* argv[])
 			exit(EXIT_FAILURE);
 		}
 		
-		VkPipelineShaderStageCreateInfo vertShaderStageInfo = {0};
+		VkPipelineShaderStageCreateInfo vertShaderStageInfo;
 		vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		vertShaderStageInfo.pNext = NULL;
 		vertShaderStageInfo.flags = 0;
@@ -835,7 +837,7 @@ int main(int argc, char* argv[])
 		vertShaderStageInfo.pName = "main";
 		vertShaderStageInfo.pSpecializationInfo = NULL;	
 		
-		VkPipelineShaderStageCreateInfo fragShaderStageInfo = {0};
+		VkPipelineShaderStageCreateInfo fragShaderStageInfo;
 		fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		fragShaderStageInfo.pNext = NULL;
 		fragShaderStageInfo.flags = 0;
