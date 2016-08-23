@@ -440,6 +440,15 @@ static void AudioCallback(void* userData, u8* audioData, int length)
     memset(audioData, 0, length);
 }
 
+static VKAPI_ATTR VkBool32 VKAPI_CALL 
+VulkanDebugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objType, uint64_t obj, 
+	size_t location, int32_t code, const char* layerPrefix, 
+	const char* msg, void* userData)
+{
+	printf("Validation layer: %s\n", msg);
+	return VK_FALSE;
+}
+
 
 int main(int argc, char* argv[])
 {	
@@ -508,7 +517,28 @@ int main(int argc, char* argv[])
 	}
 	
 	/* Create validation layers */
-	const char* validationLayers[] = { "VK_LAYER_LUNARG_standard_validation" };
+	VkDebugReportCallbackEXT debugCallback;
+	{	
+		bool enableValidationLayers = true;
+		const char* validationLayers[] = { "VK_LAYER_LUNARG_standard_validation" };
+		VkDebugReportCallbackCreateInfoEXT createInfo;
+        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
+		createInfo.pNext = NULL;
+        createInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
+        createInfo.pfnCallback = VulkanDebugCallback;
+		createInfo.pUserData = NULL;
+		/*
+		PFN_vkCreateDebugReportCallbackEXT create = (PFN_vkCreateDebugReportCallbackEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
+		if (!create) {
+			printf("Vulkan renderer: Failed to set up debug callback!\n");
+			exit(EXIT_FAILURE);
+		}
+		
+		if (create(instance, &createInfo, NULL, &debugCallback) != VK_SUCCESS) {
+			printf("Vulkan renderer: Failed to set up debug callback!\n");
+			exit(EXIT_FAILURE);
+		}*/
+	}
 	
 	VkPhysicalDevice gpu;
     {
@@ -745,7 +775,7 @@ int main(int argc, char* argv[])
 	}
 	
 	/* TODO: Create render pass */
-	VkRenderPass renderPass = VK_NULL_HANDLE;
+	VkRenderPass renderPass;
 	{
 		VkAttachmentDescription colorAttachment;
 		colorAttachment.flags = 0;
@@ -782,10 +812,12 @@ int main(int argc, char* argv[])
 		renderPassInfo.pAttachments = &colorAttachment;
 		renderPassInfo.subpassCount = 1;
 		renderPassInfo.pSubpasses = &subPass;
+		renderPassInfo.dependencyCount = 0;
+		renderPassInfo.pDependencies = NULL;
 		
-		/*if (vkCreateRenderPass(device, &renderPassInfo, NULL, &renderPass) != VK_SUCCESS) {
+		if (vkCreateRenderPass(device, &renderPassInfo, NULL, &renderPass) != VK_SUCCESS) {
             printf("Vulkan renderer: Failed to create render pass.\n");
-        }*/
+        }
 	}
 	
 	/* Create graphics pipeline */		
@@ -1023,13 +1055,13 @@ int main(int argc, char* argv[])
 	{
 		vkDeviceWaitIdle(device);
 		
-		/*vkDestroyPipeline(device, graphicsPipeline, NULL);*/
+		vkDestroyPipeline(device, graphicsPipeline, NULL);
 		vkDestroyPipelineLayout(device, pipelineLayout, NULL);
 		vkDestroyShaderModule(device, fragmentShader, NULL);
 		free(fragCode);
 		vkDestroyShaderModule(device, vertexShader, NULL);
 		free(vertCode);
-		/*vkDestroyRenderPass(device, renderPass, NULL);*/
+		vkDestroyRenderPass(device, renderPass, NULL);
 		for (uint32_t i = 0; i < swapchainImageCount; i++) {
 			vkDestroyImageView(device, swapchainImageViews[i], NULL);
 		}
