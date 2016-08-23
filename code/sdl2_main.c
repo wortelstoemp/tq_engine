@@ -661,7 +661,10 @@ int main(int argc, char* argv[])
 		VkSurfaceFormatKHR surfaceFormat;
 		{			
 			uint32_t formatCount;
-			VkSurfaceFormatKHR formats[VK_FORMAT_RANGE_SIZE] = {{VK_FORMAT_MAX_ENUM, VK_COLOR_SPACE_MAX_ENUM_KHR}};
+			VkSurfaceFormatKHR formats[1] =
+			{
+				{.format = VK_FORMAT_MAX_ENUM, .colorSpace = VK_COLOR_SPACE_MAX_ENUM_KHR}
+			};
         	if (vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &formatCount, formats) != VK_SUCCESS) {
 				printf("Vulkan renderer: Can't get surface formats.\n");			
 				exit(EXIT_FAILURE);
@@ -750,7 +753,7 @@ int main(int argc, char* argv[])
 	/* Create image views for swapchain images */
 	VkImageView* swapchainImageViews = (VkImageView*) malloc(swapchainImageCount * sizeof(VkImageView));	
 	{	
-		for (uint32_t i = 0; i < swapchainImageCount; i++) {
+		for (size_t i = 0; i < swapchainImageCount; i++) {
 			VkImageViewCreateInfo createInfo;
 			createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 			createInfo.pNext = NULL;
@@ -769,12 +772,13 @@ int main(int argc, char* argv[])
 			createInfo.subresourceRange.layerCount = 1;
 			
 			if (vkCreateImageView(device, &createInfo, NULL, &swapchainImageViews[i]) != VK_SUCCESS) {
-				printf("Vulkan renderer: Failed to create image views.\n");				
+				printf("Vulkan renderer: Failed to create image views.\n");
+				exit(EXIT_FAILURE);								
 			}
 		}
 	}
 	
-	/* TODO: Create render pass */
+	/* Create render pass */
 	VkRenderPass renderPass;
 	{
 		VkAttachmentDescription colorAttachment;
@@ -817,7 +821,30 @@ int main(int argc, char* argv[])
 		
 		if (vkCreateRenderPass(device, &renderPassInfo, NULL, &renderPass) != VK_SUCCESS) {
             printf("Vulkan renderer: Failed to create render pass.\n");
+			exit(EXIT_FAILURE);
         }
+	}
+	
+	/* Create framebuffers */
+	VkFramebuffer* swapchainFramebuffers = (VkFramebuffer*) malloc(swapchainImageCount * sizeof(VkFramebuffer));
+	{	
+		for (size_t i = 0; i < swapchainImageCount; i++) {
+			VkFramebufferCreateInfo createInfo;
+    		createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			createInfo.pNext = NULL;
+			createInfo.flags = 0;
+    		createInfo.renderPass = renderPass;
+    		createInfo.attachmentCount = 1;
+    		createInfo.pAttachments = swapchainImageViews;
+    		createInfo.width = swapchainExtent.width;
+    		createInfo.height = swapchainExtent.height;
+    		createInfo.layers = 1;
+
+    		if (vkCreateFramebuffer(device, &createInfo, NULL, &swapchainFramebuffers[i]) != VK_SUCCESS) {
+				printf("Vulkan renderer: Failed to create framebuffer.\n");
+				exit(EXIT_FAILURE);
+    		}
+		}
 	}
 	
 	/* Create graphics pipeline */		
@@ -1035,8 +1062,10 @@ int main(int argc, char* argv[])
 		/* Might use pipeline cache */
 		if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL, &graphicsPipeline) != VK_SUCCESS) {
     		printf("Vulkan renderer: Failed to create graphics pipeline!\n");
+			exit(EXIT_FAILURE);			
 		}
 	}
+	
 		
 	/* Update */
 	{
@@ -1061,8 +1090,12 @@ int main(int argc, char* argv[])
 		free(fragCode);
 		vkDestroyShaderModule(device, vertexShader, NULL);
 		free(vertCode);
+		for (size_t i = 0; i < swapchainImageCount; i++) {
+			vkDestroyFramebuffer(device, swapchainFramebuffers[i], NULL);
+		}
+		free(swapchainFramebuffers);
 		vkDestroyRenderPass(device, renderPass, NULL);
-		for (uint32_t i = 0; i < swapchainImageCount; i++) {
+		for (size_t i = 0; i < swapchainImageCount; i++) {
 			vkDestroyImageView(device, swapchainImageViews[i], NULL);
 		}
 		free(swapchainImageViews);
