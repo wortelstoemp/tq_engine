@@ -475,6 +475,7 @@ int main(int argc, char* argv[])
 		input = CreateInput(keyboardState, numKeys);
 	}
 	
+	/* Create instance */
 	VkInstance instance;
 	{
 		VkApplicationInfo appInfo;
@@ -516,7 +517,7 @@ int main(int argc, char* argv[])
 		exit(EXIT_FAILURE);
 	}
 	
-	/* Create validation layers */
+	/* TODO: Create validation layers */
 	VkDebugReportCallbackEXT debugCallback;
 	{	
 		bool enableValidationLayers = true;
@@ -540,6 +541,7 @@ int main(int argc, char* argv[])
 		}*/
 	}
 	
+	/* Create physical device */
 	VkPhysicalDevice gpu;
     {
         uint32_t numGPUs;
@@ -566,12 +568,13 @@ int main(int argc, char* argv[])
         }
 	}
 	
+	/* Create device & queues */
 	VkDevice device = VK_NULL_HANDLE;
 	VkQueue presentationQueue;
+	uint32_t presentationQueueIndex = -1;
 	{	
 		/* Check for Queue Families*/
 		
-		uint32_t presentationQueueIndex = -1;
 		uint32_t numQueues = TQ_RENDERER_MAX_DEVICE_QUEUES;
         VkQueueFamilyProperties queueProperties[TQ_RENDERER_MAX_QUEUE_FAMILY_PROPERTIES];
 		
@@ -751,9 +754,11 @@ int main(int argc, char* argv[])
 	}
 		
 	/* Create image views for swapchain images */
-	VkImageView* swapchainImageViews = (VkImageView*) malloc(swapchainImageCount * sizeof(VkImageView));	
-	{	
-		for (size_t i = 0; i < swapchainImageCount; i++) {
+	VkImageView* swapchainImageViews;
+	const uint32_t swapchainImageViewCount = swapchainImageCount;	
+	{
+		swapchainImageViews = (VkImageView*) malloc(swapchainImageViewCount * sizeof(VkImageView));	
+		for (size_t i = 0; i < swapchainImageViewCount; i++) {
 			VkImageViewCreateInfo createInfo;
 			createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 			createInfo.pNext = NULL;
@@ -826,9 +831,11 @@ int main(int argc, char* argv[])
 	}
 	
 	/* Create framebuffers */
-	VkFramebuffer* swapchainFramebuffers = (VkFramebuffer*) malloc(swapchainImageCount * sizeof(VkFramebuffer));
-	{	
-		for (size_t i = 0; i < swapchainImageCount; i++) {
+	VkFramebuffer* swapchainFramebuffers;
+	const uint32_t swapchainFramebufferCount = swapchainImageCount;
+	{
+		swapchainFramebuffers = (VkFramebuffer*) malloc(swapchainFramebufferCount * sizeof(VkFramebuffer));	
+		for (uint32_t i = 0; i < swapchainFramebufferCount; i++) {
 			VkFramebufferCreateInfo createInfo;
     		createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 			createInfo.pNext = NULL;
@@ -1066,6 +1073,38 @@ int main(int argc, char* argv[])
 		}
 	}
 	
+	/* Create command pool */
+	VkCommandPool commandPool;
+	{
+		VkCommandPoolCreateInfo createInfo;
+		createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		createInfo.pNext = NULL;
+		createInfo.flags = 0; /* VkCommandPoolCreateFlagBits */
+		createInfo.queueFamilyIndex = presentationQueueIndex;
+		if (vkCreateCommandPool(device, &createInfo, NULL, &commandPool) != VK_SUCCESS) {
+			printf("Vulkan renderer: Failed to create command pool.\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+	
+	/* Allocate command buffers */
+	VkCommandBuffer* commandBuffers;
+	const uint32_t commandBufferCount = swapchainImageCount;
+	{
+		commandBuffers = (VkCommandBuffer*) malloc(commandBufferCount * sizeof(VkCommandBuffer));
+		VkCommandBufferAllocateInfo allocInfo;
+		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocInfo.pNext = NULL;
+		allocInfo.commandPool = commandPool;
+		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocInfo.commandBufferCount = commandBufferCount;
+		if (vkAllocateCommandBuffers(device, &allocInfo, commandBuffers) != VK_SUCCESS) {
+			printf("Vulkan renderer: Failed to allocate command buffers.\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+	
+	/* Record command buffers */
 		
 	/* Update */
 	{
@@ -1084,18 +1123,21 @@ int main(int argc, char* argv[])
 	{
 		vkDeviceWaitIdle(device);
 		
+		vkFreeCommandBuffers(device, commandPool, commandBufferCount, commandBuffers);
+		free(commandBuffers);
+		vkDestroyCommandPool(device, commandPool, NULL);
 		vkDestroyPipeline(device, graphicsPipeline, NULL);
 		vkDestroyPipelineLayout(device, pipelineLayout, NULL);
 		vkDestroyShaderModule(device, fragmentShader, NULL);
 		free(fragCode);
 		vkDestroyShaderModule(device, vertexShader, NULL);
 		free(vertCode);
-		for (size_t i = 0; i < swapchainImageCount; i++) {
+		for (uint32_t i = 0; i < swapchainFramebufferCount; i++) {
 			vkDestroyFramebuffer(device, swapchainFramebuffers[i], NULL);
 		}
 		free(swapchainFramebuffers);
 		vkDestroyRenderPass(device, renderPass, NULL);
-		for (size_t i = 0; i < swapchainImageCount; i++) {
+		for (uint32_t i = 0; i < swapchainImageViewCount; i++) {
 			vkDestroyImageView(device, swapchainImageViews[i], NULL);
 		}
 		free(swapchainImageViews);
