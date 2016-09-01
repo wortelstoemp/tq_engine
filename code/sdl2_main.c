@@ -664,10 +664,8 @@ int main(int argc, char* argv[])
 		VkSurfaceFormatKHR surfaceFormat;
 		{			
 			uint32_t formatCount;
-			VkSurfaceFormatKHR formats[1] =
-			{
-				{.format = VK_FORMAT_MAX_ENUM, .colorSpace = VK_COLOR_SPACE_MAX_ENUM_KHR}
-			};
+			VkSurfaceFormatKHR formats[VK_FORMAT_RANGE_SIZE];
+			
         	if (vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &formatCount, formats) != VK_SUCCESS) {
 				printf("Vulkan renderer: Can't get surface formats.\n");			
 				exit(EXIT_FAILURE);
@@ -689,8 +687,9 @@ int main(int argc, char* argv[])
 		VkPresentModeKHR presentMode;
 		{	
 			uint32_t presentModeCount;
-			VkPresentModeKHR presentModes[] = { VK_PRESENT_MODE_MAX_ENUM_KHR };
+			VkPresentModeKHR presentModes[VK_PRESENT_MODE_RANGE_SIZE_KHR];
 			if (vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &presentModeCount, presentModes) != VK_SUCCESS) {
+				printf("%d\n", presentModeCount);
 				printf("Vulkan renderer: Can't get surface present modes.\n");
 				exit(EXIT_FAILURE);
 			}
@@ -1120,7 +1119,7 @@ int main(int argc, char* argv[])
 			renderPassInfo.renderArea.offset.y = 0;			
 			renderPassInfo.renderArea.extent = swapchainExtent;
 			
-			VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+			VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
 			renderPassInfo.clearValueCount = 1;
 			renderPassInfo.pClearValues = &clearColor;
 			
@@ -1134,6 +1133,20 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
+	
+	/* Semaphores */
+	VkSemaphore imageAvailableSemaphore = VK_NULL_HANDLE;
+	VkSemaphore renderingDoneSemaphore = VK_NULL_HANDLE;
+	{
+		VkSemaphoreCreateInfo semaphoreCreateInfo;
+		semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+		semaphoreCreateInfo.pNext = NULL;
+		semaphoreCreateInfo.flags = 0;
+		if (vkCreateSemaphore(device, &semaphoreCreateInfo, NULL, &imageAvailableSemaphore) != VK_SUCCESS ||
+			vkCreateSemaphore(device, &semaphoreCreateInfo, NULL, &renderingDoneSemaphore) != VK_SUCCESS) {
+    		printf("Vulkan renderer: Failed to create semaphores!\n");
+		}
+	}
 		
 	/* Update */
 	{
@@ -1145,6 +1158,8 @@ int main(int argc, char* argv[])
 		while (isRunning) {
 			dt = CalcClockDelta(&clock);
 			isRunning = HandleEvents(&input);
+			
+			/* TODO: Rendering */
 		}
 	}
 	
@@ -1152,6 +1167,8 @@ int main(int argc, char* argv[])
 	{
 		vkDeviceWaitIdle(device);
 		
+		vkDestroySemaphore(device, imageAvailableSemaphore, NULL);
+		vkDestroySemaphore(device, renderingDoneSemaphore, NULL);
 		vkFreeCommandBuffers(device, commandPool, commandBufferCount, commandBuffers);
 		free(commandBuffers);
 		vkDestroyCommandPool(device, commandPool, NULL);
