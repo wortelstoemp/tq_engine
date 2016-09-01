@@ -1087,7 +1087,7 @@ int main(int argc, char* argv[])
 		}
 	}
 	
-	/* Allocate command buffers */
+	/* Allocate & record command buffers */
 	VkCommandBuffer* commandBuffers;
 	const uint32_t commandBufferCount = swapchainImageCount;
 	{
@@ -1102,9 +1102,38 @@ int main(int argc, char* argv[])
 			printf("Vulkan renderer: Failed to allocate command buffers.\n");
 			exit(EXIT_FAILURE);
 		}
+		
+		for (size_t i = 0; i < commandBufferCount; i++) {
+    		VkCommandBufferBeginInfo beginInfo;
+			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+			beginInfo.pNext = NULL;
+			beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+			beginInfo.pInheritanceInfo = NULL;
+			vkBeginCommandBuffer(commandBuffers[i], &beginInfo);
+			
+			VkRenderPassBeginInfo renderPassInfo;
+			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+			renderPassInfo.pNext = NULL;
+			renderPassInfo.renderPass = renderPass;
+			renderPassInfo.framebuffer = swapchainFramebuffers[i];
+			renderPassInfo.renderArea.offset.x = 0;
+			renderPassInfo.renderArea.offset.y = 0;			
+			renderPassInfo.renderArea.extent = swapchainExtent;
+			
+			VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+			renderPassInfo.clearValueCount = 1;
+			renderPassInfo.pClearValues = &clearColor;
+			
+			vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+			vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+			vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+			vkCmdEndRenderPass(commandBuffers[i]);
+			
+			if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
+				printf("Vulkan renderer: Failed to record command buffer!\n");
+			}
+		}
 	}
-	
-	/* Record command buffers */
 		
 	/* Update */
 	{
