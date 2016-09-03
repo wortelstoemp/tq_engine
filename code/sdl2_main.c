@@ -571,7 +571,9 @@ int main(int argc, char* argv[])
 	/* Create device & queues */
 	VkDevice device = VK_NULL_HANDLE;
 	VkQueue presentationQueue;
+	VkQueue graphicsQueue;
 	uint32_t presentationQueueIndex = -1;
+	uint32_t graphicsQueueIndex = -1;
 	{	
 		/* Check for Queue Families*/
 		
@@ -812,6 +814,15 @@ int main(int argc, char* argv[])
 		subPass.preserveAttachmentCount = 0;
 		subPass.pPreserveAttachments = NULL;
 		
+		VkSubpassDependency dependency;
+		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		dependency.dstSubpass = 0;
+		dependency.srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dependency.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		dependency.dependencyFlags = 0;
+		
 		VkRenderPassCreateInfo renderPassInfo;
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 		renderPassInfo.pNext = NULL;
@@ -820,8 +831,8 @@ int main(int argc, char* argv[])
 		renderPassInfo.pAttachments = &colorAttachment;
 		renderPassInfo.subpassCount = 1;
 		renderPassInfo.pSubpasses = &subPass;
-		renderPassInfo.dependencyCount = 0;
-		renderPassInfo.pDependencies = NULL;
+		renderPassInfo.dependencyCount = 1;
+		renderPassInfo.pDependencies = &dependency;
 		
 		if (vkCreateRenderPass(device, &renderPassInfo, NULL, &renderPass) != VK_SUCCESS) {
             printf("Vulkan renderer: Failed to create render pass.\n");
@@ -970,7 +981,7 @@ int main(int argc, char* argv[])
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
         rasterizer.depthBiasEnable = VK_FALSE;
 		rasterizer.depthBiasConstantFactor = 0.0f;
 		rasterizer.depthBiasClamp = 0.0f;
@@ -1119,7 +1130,7 @@ int main(int argc, char* argv[])
 			renderPassInfo.renderArea.offset.y = 0;			
 			renderPassInfo.renderArea.extent = swapchainExtent;
 			
-			VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+			VkClearValue clearColor = { 1.0f, 0.0f, 1.0f, 1.0f };
 			renderPassInfo.clearValueCount = 1;
 			renderPassInfo.pClearValues = &clearColor;
 			
@@ -1159,7 +1170,44 @@ int main(int argc, char* argv[])
 			dt = CalcClockDelta(&clock);
 			isRunning = HandleEvents(&input);
 			
-			/* TODO: Rendering */
+			/* Rendering */
+			{
+				/* 1) Acquire image from swap chain */
+				uint32_t imageIndex;
+				vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+				
+				/* 2) Submit command buffer to graphics queue */
+				VkSemaphore waitSemaphores[1] = { imageAvailableSemaphore };
+				VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+				VkSemaphore signalSemaphores[1] = { renderingDoneSemaphore };
+				VkSubmitInfo submitInfo;
+				submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+				submitInfo.pNext = NULL;
+				submitInfo.waitSemaphoreCount = 1;
+				submitInfo.pWaitSemaphores = waitSemaphores;
+				submitInfo.pWaitDstStageMask = waitStages;
+				submitInfo.commandBufferCount = 1;
+				submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
+				submitInfo.signalSemaphoreCount = 0;
+				submitInfo.pSignalSemaphores = signalSemaphores;
+				
+				if (vkQueueSubmit(presentationQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+					printf("Vulkan renderer: Failed to submit draw command buffer!\n");
+				}
+				
+				/* 3) Presentation */
+				VkPresentInfoKHR presentInfo;
+				presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+				presentInfo.pNext = NULL;
+				presentInfo.waitSemaphoreCount = 1;
+				presentInfo.pWaitSemaphores = signalSemaphores;
+				presentInfo.swapchainCount = 1;
+				presentInfo.pSwapchains = &swapchain;
+				presentInfo.pImageIndices = &imageIndex;
+				presentInfo.pResults = NULL;
+				
+				vkQueuePresentKHR(presentationQueue, &presentInfo);
+			}
 		}
 	}
 	
