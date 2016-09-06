@@ -449,6 +449,15 @@ VulkanDebugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objT
 	return VK_FALSE;
 }
 
+void
+VulkanDestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator)
+{
+    auto func = (PFN_vkDestroyDebugReportCallbackEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT");
+    if (func != NULL) {
+        func(instance, callback, pAllocator);
+    }
+}
+
 
 int main(int argc, char* argv[])
 {	
@@ -478,8 +487,7 @@ int main(int argc, char* argv[])
 	
 	/* Create instance */
 	VkInstance instance;
-		const char* validationLayers[] = { "VK_LAYER_LUNARG_standard_validation" };
-	
+	const char* validationLayers[] = { "VK_LAYER_LUNARG_standard_validation" };
 	{
 		VkApplicationInfo appInfo;
 		VkInstanceCreateInfo createInfo;
@@ -1202,7 +1210,7 @@ int main(int argc, char* argv[])
 				submitInfo.pWaitDstStageMask = waitStages;
 				submitInfo.commandBufferCount = 1;
 				submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
-				submitInfo.signalSemaphoreCount = 0;
+				submitInfo.signalSemaphoreCount = 1;
 				submitInfo.pSignalSemaphores = signalSemaphores;
 				
 				if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
@@ -1253,6 +1261,7 @@ int main(int argc, char* argv[])
 		vkDestroySwapchainKHR(device, swapchain, NULL);
 		vkDestroyDevice(device, NULL);
 		vkDestroySurfaceKHR(instance, surface, NULL);
+		VulkanDestroyDebugReportCallbackEXT(instance, debugCallback, NULL);
 		vkDestroyInstance(instance, NULL);
 	
 		DestroyInput(&input);
