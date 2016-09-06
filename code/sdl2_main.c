@@ -570,65 +570,69 @@ int main(int argc, char* argv[])
 	
 	/* Create device & queues */
 	VkDevice device = VK_NULL_HANDLE;
-	VkQueue presentationQueue;
 	VkQueue graphicsQueue;
-	uint32_t presentationQueueIndex = -1;
+	VkQueue presentationQueue;
 	uint32_t graphicsQueueIndex = -1;
-	{	
-		/* Check for Queue Families*/
-		
-		uint32_t numQueues = TQ_RENDERER_MAX_DEVICE_QUEUES;
-        VkQueueFamilyProperties queueProperties[TQ_RENDERER_MAX_QUEUE_FAMILY_PROPERTIES];
-		
-        vkGetPhysicalDeviceQueueFamilyProperties(gpu, &numQueues, queueProperties);
-        if (numQueues < 1) {
-			printf("Vulkan renderer: Can't get GPU Queue Family Properties.\n");
-			exit(EXIT_FAILURE);
+	uint32_t presentationQueueIndex = -1;
+	{
+		uint32_t queueFamilyCount = 0;
+		vkGetPhysicalDeviceQueueFamilyProperties(gpu, &queueFamilyCount, NULL);
+	
+		VkQueueFamilyProperties* queueFamilies = (VkQueueFamilyProperties*) malloc(queueFamilyCount * sizeof(VkQueueFamilyProperties));
+		vkGetPhysicalDeviceQueueFamilyProperties(gpu, &queueFamilyCount, queueFamilies);
+	
+		for (uint32_t i = 0; i < queueFamilyCount; i++) {
+			if (queueFamilies[i].queueCount > 0 && queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+				graphicsQueueIndex = i;
+			}
+				
+			VkBool32 presentSupport = false;
+			vkGetPhysicalDeviceSurfaceSupportKHR(gpu, i, surface, &presentSupport);
+			if (queueFamilies[i].queueCount > 0 && presentSupport) {
+    	    	presentationQueueIndex = i;
+    	    }
+				
+			if (graphicsQueueIndex >= 0 && presentationQueueIndex >= 0) {
+				break;
+			}
 		}
+	
+		free(queueFamilies);
+	
+    	float queuePriority = 1.0f;	
+		/* Graphics queue */
+		VkDeviceQueueCreateInfo graphicsQueueCreateInfo = {};
+		graphicsQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		graphicsQueueCreateInfo.queueFamilyIndex = graphicsQueueIndex;
+		graphicsQueueCreateInfo.queueCount = 1;
+    	graphicsQueueCreateInfo.pQueuePriorities = &queuePriority;
+	
+		/* Presentation queue */
+		VkDeviceQueueCreateInfo presentationQueueCreateInfo = {};
+		presentationQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		presentationQueueCreateInfo.queueFamilyIndex = presentationQueueIndex;
+		presentationQueueCreateInfo.queueCount = 1;
+    	presentationQueueCreateInfo.pQueuePriorities = &queuePriority;
 
-		/* Queue familiy for presentation (surface) & graphics */
-		/* Might split those up and make API for multiple queues */
-        for (uint32_t i = 0; i < numQueues; i++) {
-        	VkBool32 presentationSupported;
-            vkGetPhysicalDeviceSurfaceSupportKHR(gpu, i, surface, &presentationSupported);
-            if (presentationSupported && (queueProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
-            	presentationQueueIndex = i;
-            	break;
-            }
-        }
-        if (presentationQueueIndex == -1) {
-			printf("Vulkan Renderer: Can't get suitable GPU Queue Family.\n");
-			exit(EXIT_FAILURE);
-		}
-		
-		/* Only one queue & multiple command buffers per thread */
-		/* Submit command buffers to queue on main thread */
-		/* NOTE: Use list of queueCreateInfo's in future */
-		VkDeviceQueueCreateInfo queueCreateInfo;
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.pNext = NULL;
-		queueCreateInfo.flags = 0;
-		queueCreateInfo.queueFamilyIndex = presentationQueueIndex;
-        queueCreateInfo.queueCount = 1;
-        float queuePriority = 1.0f; /* for scheduling multiple queues */
-		queueCreateInfo.pQueuePriorities = &queuePriority;
-		
-		VkPhysicalDeviceFeatures deviceFeatures = {VK_FALSE};
+		VkPhysicalDeviceFeatures deviceFeatures = {};
 		VkDeviceCreateInfo deviceCreateInfo;
-        deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 		deviceCreateInfo.pNext = NULL;
 		deviceCreateInfo.flags = 0;
-        deviceCreateInfo.queueCreateInfoCount = 1; /* Might change to list*/
-        deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo; /* idem */
+	
+		VkDeviceQueueCreateInfo queueCreateInfos[] = { graphicsQueueCreateInfo, presentationQueueCreateInfo };
+	
+    	deviceCreateInfo.queueCreateInfoCount = 2;
+    	deviceCreateInfo.pQueueCreateInfos = queueCreateInfos;
 		deviceCreateInfo.enabledLayerCount = 0;
 		deviceCreateInfo.ppEnabledLayerNames = NULL;
     	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
-		
+
 		/* Extensions */
 		const uint32_t extensionCount = 1;
 		const char* extensions[1] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME }; 
-        deviceCreateInfo.enabledExtensionCount = extensionCount;
-        deviceCreateInfo.ppEnabledExtensionNames = extensions;
+		deviceCreateInfo.enabledExtensionCount = extensionCount;
+		deviceCreateInfo.ppEnabledExtensionNames = extensions;
 		
 		if (vkCreateDevice(gpu, &deviceCreateInfo, NULL, &device) != VK_SUCCESS) {
 			printf("Vulkan renderer: Can't create logical device.\n");
@@ -636,6 +640,7 @@ int main(int argc, char* argv[])
 		}
 		
 		/* Create the queues */
+		vkGetDeviceQueue(device, graphicsQueueIndex, 0, &graphicsQueue);		
 		vkGetDeviceQueue(device, presentationQueueIndex, 0, &presentationQueue);
 	}
 	
@@ -1090,7 +1095,7 @@ int main(int argc, char* argv[])
 		createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		createInfo.pNext = NULL;
 		createInfo.flags = 0; /* VkCommandPoolCreateFlagBits */
-		createInfo.queueFamilyIndex = presentationQueueIndex;
+		createInfo.queueFamilyIndex = graphicsQueueIndex;
 		if (vkCreateCommandPool(device, &createInfo, NULL, &commandPool) != VK_SUCCESS) {
 			printf("Vulkan renderer: Failed to create command pool.\n");
 			exit(EXIT_FAILURE);
@@ -1130,7 +1135,7 @@ int main(int argc, char* argv[])
 			renderPassInfo.renderArea.offset.y = 0;			
 			renderPassInfo.renderArea.extent = swapchainExtent;
 			
-			VkClearValue clearColor = { 1.0f, 0.0f, 1.0f, 1.0f };
+			VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
 			renderPassInfo.clearValueCount = 1;
 			renderPassInfo.pClearValues = &clearColor;
 			
@@ -1191,7 +1196,7 @@ int main(int argc, char* argv[])
 				submitInfo.signalSemaphoreCount = 0;
 				submitInfo.pSignalSemaphores = signalSemaphores;
 				
-				if (vkQueueSubmit(presentationQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+				if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
 					printf("Vulkan renderer: Failed to submit draw command buffer!\n");
 				}
 				
