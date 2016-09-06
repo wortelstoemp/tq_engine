@@ -44,7 +44,7 @@ float CalcClockDelta(Clock* clock)
 	}
 	
 	fps = (float) clock->performanceFrequency / (float) counterDelta;
-	/* printf("%.10f ms/f, %.10f f/s\n", delta, fps); */
+	/*printf("%.10f ms/f, %.10f f/s\n", delta, fps);*/
 	clock->last = clock->current;
 	clock->accumulator += delta;
     
@@ -445,7 +445,7 @@ VulkanDebugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objT
 	size_t location, int32_t code, const char* layerPrefix, 
 	const char* msg, void* userData)
 {
-	printf("Validation layer: %s\n", msg);
+	fprintf(stderr, "Validation layer: %s\n", msg);
 	return VK_FALSE;
 }
 
@@ -457,8 +457,8 @@ int main(int argc, char* argv[])
 		exit(EXIT_FAILURE);
 	}
 	
-	int windowWidth = 800;
-	int windowHeight = 600;
+	int windowWidth = 960;
+	int windowHeight = 540;
 	SDL_Window* window = SDL_CreateWindow(
 			"TQ Engine",
 			SDL_WINDOWPOS_UNDEFINED,
@@ -467,6 +467,7 @@ int main(int argc, char* argv[])
 			windowHeight,
 			0
 	);
+	/* SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP); */
 	
 	Input input;
 	{
@@ -477,6 +478,8 @@ int main(int argc, char* argv[])
 	
 	/* Create instance */
 	VkInstance instance;
+		const char* validationLayers[] = { "VK_LAYER_LUNARG_standard_validation" };
+	
 	{
 		VkApplicationInfo appInfo;
 		VkInstanceCreateInfo createInfo;
@@ -493,7 +496,8 @@ int main(int argc, char* argv[])
 		createInfo.pNext = NULL;
 		createInfo.flags = 0;
 		createInfo.pApplicationInfo = &appInfo;
-		createInfo.ppEnabledLayerNames = NULL;
+		createInfo.enabledLayerCount = 1;
+		createInfo.ppEnabledLayerNames = validationLayers;
 	
 		unsigned int extensionCount = 0;
 		char* extensions[SDLTQ_VULKAN_NUM_INSTANCE_EXTENSIONS];
@@ -503,7 +507,6 @@ int main(int argc, char* argv[])
 		}
 		createInfo.enabledExtensionCount = extensionCount;
 		createInfo.ppEnabledExtensionNames = extensions;
-		createInfo.enabledLayerCount = 0;
 	
 		if (vkCreateInstance(&createInfo, NULL, &instance) != VK_SUCCESS) {
 			printf("Couldn't create VkInstance.\n");
@@ -517,18 +520,15 @@ int main(int argc, char* argv[])
 		exit(EXIT_FAILURE);
 	}
 	
-	/* TODO: Create validation layers */
+	/* Create validation layers */
 	VkDebugReportCallbackEXT debugCallback;
 	{	
-		bool enableValidationLayers = true;
-		const char* validationLayers[] = { "VK_LAYER_LUNARG_standard_validation" };
 		VkDebugReportCallbackCreateInfoEXT createInfo;
         createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
 		createInfo.pNext = NULL;
         createInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
         createInfo.pfnCallback = VulkanDebugCallback;
 		createInfo.pUserData = NULL;
-		/*
 		PFN_vkCreateDebugReportCallbackEXT create = (PFN_vkCreateDebugReportCallbackEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
 		if (!create) {
 			printf("Vulkan renderer: Failed to set up debug callback!\n");
@@ -538,7 +538,7 @@ int main(int argc, char* argv[])
 		if (create(instance, &createInfo, NULL, &debugCallback) != VK_SUCCESS) {
 			printf("Vulkan renderer: Failed to set up debug callback!\n");
 			exit(EXIT_FAILURE);
-		}*/
+		}
 	}
 	
 	/* Create physical device */
@@ -624,9 +624,15 @@ int main(int argc, char* argv[])
 	
     	deviceCreateInfo.queueCreateInfoCount = 2;
     	deviceCreateInfo.pQueueCreateInfos = queueCreateInfos;
-		deviceCreateInfo.enabledLayerCount = 0;
-		deviceCreateInfo.ppEnabledLayerNames = NULL;
     	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
+		bool enableValidationLayers = true;
+		if (enableValidationLayers) {
+			deviceCreateInfo.enabledLayerCount = 1;
+			deviceCreateInfo.ppEnabledLayerNames = validationLayers;
+		} else {
+			deviceCreateInfo.enabledLayerCount = 0;
+			deviceCreateInfo.ppEnabledLayerNames = NULL;
+		}
 
 		/* Extensions */
 		const uint32_t extensionCount = 1;
@@ -691,19 +697,18 @@ int main(int argc, char* argv[])
 		}
 		
 		/* Choose present mode */
-		VkPresentModeKHR presentMode;
+		VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
 		{	
 			uint32_t presentModeCount;
 			VkPresentModeKHR presentModes[VK_PRESENT_MODE_RANGE_SIZE_KHR];
 			if (vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &presentModeCount, presentModes) != VK_SUCCESS) {
-				printf("%d\n", presentModeCount);
 				printf("Vulkan renderer: Can't get surface present modes.\n");
 				exit(EXIT_FAILURE);
 			}
 			
 			/* Choose triple buffering if it's available */
 			for (uint32_t i = 0; i < presentModeCount; i++) {
-				if (presentModes[i] = VK_PRESENT_MODE_MAILBOX_KHR) {
+				if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
 					presentMode = presentModes[i];
 					break;
 				}
@@ -724,7 +729,6 @@ int main(int argc, char* argv[])
         if ((surfaceCapabilities.maxImageCount > 0) && (swapchainImageCount > surfaceCapabilities.maxImageCount)) {
             swapchainImageCount = surfaceCapabilities.maxImageCount;
         }
-		
 		createInfo.minImageCount = swapchainImageCount;
 		createInfo.imageFormat = surfaceFormat.format;		
 		createInfo.imageColorSpace = surfaceFormat.colorSpace;
@@ -1175,6 +1179,11 @@ int main(int argc, char* argv[])
 			dt = CalcClockDelta(&clock);
 			isRunning = HandleEvents(&input);
 			
+			while (IsClockAccumulating(&clock)) {
+				/* */
+				AccumulateClock(&clock);
+			}
+			
 			/* Rendering */
 			{
 				/* 1) Acquire image from swap chain */
@@ -1208,6 +1217,7 @@ int main(int argc, char* argv[])
 				presentInfo.pWaitSemaphores = signalSemaphores;
 				presentInfo.swapchainCount = 1;
 				presentInfo.pSwapchains = &swapchain;
+				printf("index: %d\n", imageIndex);
 				presentInfo.pImageIndices = &imageIndex;
 				presentInfo.pResults = NULL;
 				

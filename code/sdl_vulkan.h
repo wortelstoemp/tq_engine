@@ -52,7 +52,7 @@
 #include <vulkan/vulkan.h>
 #include <sdl/SDL_syswm.h>
 
-#define SDLTQ_VULKAN_NUM_INSTANCE_EXTENSIONS 2
+#define SDLTQ_VULKAN_NUM_INSTANCE_EXTENSIONS 3
 
 SDL_bool SDLTQ_LoadVulkanInstanceExtensions(char** extensions, unsigned int* count)
 {
@@ -74,18 +74,21 @@ SDL_bool SDLTQ_LoadVulkanInstanceExtensions(char** extensions, unsigned int* cou
     if(strcmp(driver, "windows") == 0) {
         extensions[0] = VK_KHR_SURFACE_EXTENSION_NAME;
         extensions[1] = VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
+        extensions[2] = VK_EXT_DEBUG_REPORT_EXTENSION_NAME;
         return SDL_TRUE;
     }
 #elif __linux__
     if (strcmp(driver, "x11") == 0) {
         extensions[0] = VK_KHR_SURFACE_EXTENSION_NAME;
         extensions[1] = VK_KHR_XCB_SURFACE_EXTENSION_NAME;
+        extensions[2] = VK_EXT_DEBUG_REPORT_EXTENSION_NAME;        
         return SDL_TRUE;
     }
 #elif __ANDROID__
     if (strcmp(driver, "android") == 0) {
         extensions[0] = VK_KHR_SURFACE_EXTENSION_NAME;
         extensions[1] = VK_KHR_ANDROID_SURFACE_EXTENSION_NAME;
+        extensions[2] = VK_EXT_DEBUG_REPORT_EXTENSION_NAME;        
         return SDL_TRUE;
     }
 #endif
